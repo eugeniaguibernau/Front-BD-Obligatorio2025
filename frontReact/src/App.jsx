@@ -1,35 +1,41 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
+/**
+ * Componente principal de la aplicación
+ * Ejemplo de integración con el sistema de autenticación
+ * Redirecciona a dashboards diferentes según el rol del usuario
+ */
+
+import { useAuth } from './hooks/useAuth'
+import { Login } from './Components/Login/Login'
+import { AdminDashboard } from './Components/AdminDashboard/AdminDashboard'
+import { ParticipantDashboard } from './Components/ParticipantDashboard/ParticipantDashboard'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const { isAuthenticated, user, loading } = useAuth()
 
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+        <p>Cargando...</p>
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    )
+  }
+
+  if (!isAuthenticated) {
+    return <Login />
+  }
+
+  // Redireccionar según el rol del usuario
+  if (user?.user_type === 'admin') {
+    return <AdminDashboard />
+  }
+
+  if (user?.user_type === 'participante') {
+    return <ParticipantDashboard />
+  }
+
+  // Por si acaso, fallback a login
+  return <Login />
 }
 
 export default App
