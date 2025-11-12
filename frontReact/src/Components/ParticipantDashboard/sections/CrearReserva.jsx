@@ -170,11 +170,18 @@ export default function CrearReserva({ tienesSanciones }) {
       setError(backendMsg)
       console.error('Crear reserva error response:', res)
 
-      // try to extract invalid participant CI from the backend message
-      // backend message example: "El participante 55281693 no tiene programa académico asignado."
-      const m = /participante\s+(\d{6,})/i.exec(backendMsg)
-      if (m && m[1]) {
-        setInvalidParticipants([m[1]])
+      // if backend message mentions sancion(es) o bloqueo, prioritize that message and DO NOT show the "invalid participants" box
+      const isSancionMsg = /sanci[oó]n|sanciones|no puede reservar|no puede crear reservas|tiene sanciones vigentes|bloquead/i.test(backendMsg)
+
+      // try to extract invalid participant CI from the backend message when it's NOT a sancion message
+      if (!isSancionMsg) {
+        const m = /participante\s+(\d{6,})/i.exec(backendMsg)
+        if (m && m[1]) {
+          setInvalidParticipants([m[1]])
+        }
+      } else {
+        // clear invalid participants to avoid showing the extra alert in sancion cases
+        setInvalidParticipants([])
       }
       return
     }
@@ -216,9 +223,13 @@ export default function CrearReserva({ tienesSanciones }) {
       const backendMsg = res.error || (res.data && (res.data.error || res.data.mensaje)) || 'Error creando reserva'
       setError(backendMsg)
       console.error('Retry Crear reserva error response:', res)
-      // update invalid participants if new info provided
-      const m = /participante\s+(\d{6,})/i.exec(backendMsg)
-      if (m && m[1]) setInvalidParticipants([m[1]])
+      const isSancionMsg = /sanci[oó]n|sanciones|no puede reservar|no puede crear reservas|tiene sanciones vigentes|bloquead/i.test(backendMsg)
+      if (!isSancionMsg) {
+        const m = /participante\s+(\d{6,})/i.exec(backendMsg)
+        if (m && m[1]) setInvalidParticipants([m[1]])
+      } else {
+        setInvalidParticipants([])
+      }
       return
     }
 

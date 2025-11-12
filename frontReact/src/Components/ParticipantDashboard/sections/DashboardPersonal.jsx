@@ -122,18 +122,6 @@ export default function DashboardPersonal({ tienesSanciones }) {
             <label>Email</label>
             <p>{email}</p>
           </div>
-          <div className="info-item">
-            <label>CI</label>
-            <p>{ciVal}</p>
-          </div>
-          <div className="info-item">
-            <label>Facultad</label>
-            <p>{facultad}</p>
-          </div>
-          <div className="info-item">
-            <label>Programa</label>
-            <p>{programa}</p>
-          </div>
         </div>
       </div>
 
