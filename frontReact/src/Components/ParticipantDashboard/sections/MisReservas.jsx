@@ -6,12 +6,11 @@ import reservaService from '../../../services/reservaService'
 import { useAuth } from '../../../hooks/useAuth'
 
 export default function MisReservas() {
-  const { user, logout } = useAuth()
+  const { logout } = useAuth()
   const [reservas, setReservas] = useState([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  // manual estado editing removed: states handled automatically
   const [actionLoading, setActionLoading] = useState(false)
   const [message, setMessage] = useState(null)
   const [editingId, setEditingId] = useState(null)
@@ -22,7 +21,6 @@ export default function MisReservas() {
     setError(null)
     const res = await reservaService.listarReservas()
     if (res && res.unauthorized) {
-      // force logout and redirect to login
       logout()
       setError('No autorizado')
       setReservas([])
@@ -46,42 +44,39 @@ export default function MisReservas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservas])
 
+  // build a normalized turno string for search/display
+  const buildTurnoStr = (r) => {
+    if (!r) return ''
+    let turnoStr = ''
+    if (r.id_turno) turnoStr += r.id_turno + ' '
+    if (r.turno) {
+      if (typeof r.turno === 'string') turnoStr += r.turno + ' '
+      else if (typeof r.turno === 'object') {
+        if (r.turno.nombre) turnoStr += r.turno.nombre + ' '
+        if (r.turno.hora_inicio) turnoStr += r.turno.hora_inicio + ' '
+        if (r.turno.hora_fin) turnoStr += r.turno.hora_fin + ' '
+      }
+    }
+    return turnoStr.trim().toLowerCase()
+  }
+
   // derived filtered reservas according to query (search across sala, fecha, turno, estado)
   const q = (query || '').trim().toLowerCase()
   const filteredReservas = q === '' ? reservas : (reservas || []).filter(r => {
     const sala = `${r.nombre_sala || ''} ${r.edificio || ''}`.toLowerCase()
     const fecha = (r.fecha || '').toString().toLowerCase()
-    const turno = (r.id_turno || r.turno || '').toString().toLowerCase()
+    const turno = buildTurnoStr(r)
     const estado = (r.estado || '').toString().toLowerCase()
     return sala.includes(q) || fecha.includes(q) || turno.includes(q) || estado.includes(q)
-    // derived filtered reservas according to query (search across sala, fecha, turno, estado)
-    const q = (query || '').trim().toLowerCase()
-    const filteredReservas = q === '' ? reservas : (reservas || []).filter(r => {
-      const sala = `${r.nombre_sala || ''} ${r.edificio || ''}`.toLowerCase()
-      const fecha = (r.fecha || '').toString().toLowerCase()
-      const estado = (r.estado || '').toString().toLowerCase()
-      // build a turno string from possible shapes: id_turno, turno.nombre, turno.hora_inicio/hora_fin
-      let turnoStr = ''
-      if (r.id_turno) turnoStr += r.id_turno + ' '
-      if (r.turno) {
-        if (typeof r.turno === 'string') turnoStr += r.turno + ' '
-        if (r.turno.nombre) turnoStr += r.turno.nombre + ' '
-        if (r.turno.hora_inicio) turnoStr += r.turno.hora_inicio + ' '
-        if (r.turno.hora_fin) turnoStr += r.turno.hora_fin + ' '
-      }
-      turnoStr = turnoStr.toString().toLowerCase()
-      return sala.includes(q) || fecha.includes(q) || turnoStr.includes(q) || estado.includes(q)
-    })
+  })
 
   // classify reservas into active / cancelled-or-no-asist / asistidas
   const isCancelledOrNoAsist = (st) => {
     if (!st) return false
-    // cancelada, sin asistencia, no asist, no asistencia
     return /^cancel/i.test(st) || /sin\s*asist/i.test(st) || /no\s*asist/i.test(st) || /no\s*asistencia/i.test(st)
   }
   const isAsistida = (st) => {
     if (!st) return false
-    // contains 'asist' but not the negative forms
     return /asist/i.test(st) && !isCancelledOrNoAsist(st)
   }
 
@@ -112,7 +107,6 @@ export default function MisReservas() {
   // Cancel action: mark reservation as 'cancelada' (future) or 'sin asistencia' (past)
   const onCancel = async (r) => {
     const estadoLower = (r.estado || '').toString().toLowerCase()
-    // Only active reservations may be cancelled from the UI
     if (estadoLower !== 'activa') {
       setMessage('Solo se pueden cancelar reservas en estado "activa"')
       return
@@ -127,14 +121,11 @@ export default function MisReservas() {
       let payload = { }
       if (fecha && !isNaN(fecha.getTime())) {
         if (fecha.getTime() > now.getTime()) {
-          // future reservation -> mark as cancelada
           payload.estado = 'cancelada'
         } else {
-          // date passed -> mark as sin asistencia
           payload.estado = 'sin asistencia'
         }
       } else {
-        // unknown fecha: mark as cancelada
         payload.estado = 'cancelada'
       }
       const res = await reservaService.actualizarReserva(id, payload)
@@ -151,7 +142,6 @@ export default function MisReservas() {
 
   // Edit handlers: only edit fecha, must be at least 2 days in the future
   const startEdit = (r) => {
-    // only allow editing when reserva is active
     const estado = (r.estado || '').toString().toLowerCase()
     if (estado !== 'activa') {
       setMessage('Solo se puede editar la fecha de reservas en estado "activa"')
@@ -159,7 +149,6 @@ export default function MisReservas() {
     }
     const id = r.id_reserva || r.id
     setEditingId(id)
-    // normalize fecha to YYYY-MM-DD for input[type=date]
     try {
       const d = r.fecha ? new Date(r.fecha) : null
       if (d && !isNaN(d.getTime())) {
@@ -170,12 +159,9 @@ export default function MisReservas() {
         return
       }
     } catch (e) {
-      // fallback to empty
+      // fallback
     }
     setEditFecha('')
-    // Deprecated: editing via UI is disabled. Keep function for compatibility.
-    setEditingId(null)
-    setEditData({})
   }
 
   const cancelEdit = () => {
@@ -188,7 +174,6 @@ export default function MisReservas() {
       setMessage('Seleccione una fecha válida')
       return
     }
-    // extra safety: fetch the reserva from current state and ensure it's still activa
     const current = (reservas || []).find(rr => (rr.id_reserva || rr.id) === id)
     const estadoActual = (current && (current.estado || '')).toString().toLowerCase()
     if (estadoActual !== 'activa') {
@@ -227,14 +212,14 @@ export default function MisReservas() {
     const now = new Date()
     const toUpdate = list.filter(r => {
       const fecha = r.fecha ? new Date(r.fecha) : null
-      return r.estado === 'activa' && fecha && !isNaN(fecha.getTime()) && fecha.getTime() < now.getTime()
+      const st = (r.estado || '').toString().toLowerCase()
+      return st === 'activa' && fecha && !isNaN(fecha.getTime()) && fecha.getTime() < now.getTime()
     })
     if (toUpdate.length === 0) return
     try {
       setActionLoading(true)
       for (const r of toUpdate) {
         const id = r.id_reserva || r.id
-        // update to sin asistencia; ignore individual errors and continue
         // eslint-disable-next-line no-await-in-loop
         await reservaService.actualizarReserva(id, { estado: 'sin asistencia' })
       }
@@ -244,6 +229,9 @@ export default function MisReservas() {
     } finally {
       setActionLoading(false)
       fetchReservas()
+    }
+  }
+
   // New: cancel reservation (automatic state change to 'cancelada')
   const handleCancel = async (id) => {
     if (!window.confirm('¿Confirmar cancelación de esta reserva?')) return
@@ -264,10 +252,10 @@ export default function MisReservas() {
 
   return (
     <div className="seccion">
-  <h1>Mis Reservas</h1>
-  <p style={{ marginBottom: '0.25rem' }}>Todas tus reservas en el sistema</p>
+      <h1>Mis Reservas</h1>
+      <p style={{ marginBottom: '0.25rem' }}>Todas tus reservas en el sistema</p>
 
-  <div className="controles" style={{ marginBottom: '0.25rem' }}>
+      <div className="controles" style={{ marginBottom: '0.25rem' }}>
         <input
           type="text"
           placeholder="Buscar reserva..."
@@ -277,62 +265,11 @@ export default function MisReservas() {
         />
       </div>
 
-  {loading && <p>Cargando reservas...</p>}
-  {error && <div className="alert-banner alert-rojo">{error}</div>}
-  {message && <div className={`alert-banner ${message.includes('error') || message.includes('Error') || message.includes('No') ? 'alert-rojo' : 'alert-verde'}`}>{message}</div>}
+      {loading && <p>Cargando reservas...</p>}
+      {error && <div className="alert-banner alert-rojo">{error}</div>}
+      {message && <div className={`alert-banner ${/error|Error|No/i.test(message) ? 'alert-rojo' : 'alert-verde'}`}>{message}</div>}
 
-      <table className="tabla-participante" style={{ color: '#000' }}>
-        <thead>
-          <tr>
-            <th>Sala</th>
-            <th>Fecha</th>
-            <th>Turno</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {reservas && reservas.length > 0 ? (
-            filteredReservas.length === 0 ? (
-              <tr>
-                <td colSpan="5" className="sin-datos">No se encontraron reservas</td>
-              </tr>
-            ) : (
-              filteredReservas.map((r) => (
-                <tr key={r.id_reserva || r.id}>
-                  <td>{r.nombre_sala} {r.edificio ? `- ${r.edificio}` : ''}</td>
-                  <td>
-                    {editingId === (r.id_reserva || r.id) ? (
-                      <input type="date" value={editFecha} onChange={e => setEditFecha(e.target.value)} />
-                    ) : (
-                      r.fecha
-                    )}
-                  </td>
-                  <td>{r.id_turno}</td>
-                  <td>{r.estado || '—'}</td>
-                  <td>
-                    {editingId === (r.id_reserva || r.id) ? (
-                      <>
-                        <button className="btn-sec" onClick={() => saveEdit(r.id_reserva || r.id)} disabled={actionLoading}>Guardar</button>
-                        <button className="btn-link" onClick={cancelEdit} disabled={actionLoading}>Cancelar</button>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          className="btn-sec"
-                          onClick={() => startEdit(r)}
-                          disabled={actionLoading || ((r.estado || '').toString().toLowerCase() !== 'activa')}
-                          title={((r.estado || '').toString().toLowerCase() !== 'activa') ? 'Solo se puede editar reservas activas' : ''}
-                        >Editar</button>
-                        <button
-                          className="btn-danger"
-                          onClick={() => onCancel(r)}
-                          disabled={actionLoading || ((r.estado || '').toString().toLowerCase() !== 'activa')}
-                          title={((r.estado || '').toString().toLowerCase() !== 'activa') ? 'Solo se pueden cancelar reservas activas' : ''}
-                        >Cancelar</button>
-                        <button className="btn-link" onClick={() => onDelete(r.id_reserva || r.id)} disabled={actionLoading}>Eliminar</button>
-                      </>
-      {/* Resumen encima de las tres tablas: muestra nombre de sección y conteo (badges) */}
+      {/* Summary badges */}
       <div className="resumen-row" style={{ display: 'flex', gap: '1rem', margin: '0.25rem 0' }}>
         <div style={{ flex: 1, background: '#f5f5f5', padding: '0.5rem 0.75rem', borderRadius: 6 }}>
           <div style={{ fontSize: '0.9rem', color: '#333', fontWeight: 600 }}>Reservas activas</div>
@@ -348,71 +285,67 @@ export default function MisReservas() {
         </div>
       </div>
 
-        {/* Render groups in order; when a query exists, show groups with matches first */}
-        {(() => {
-          const groups = [
-            { key: 'active', label: 'Reservas activas', items: activeReservas },
-            { key: 'cancelled', label: 'Reservas canceladas / no asistidas', items: cancelledOrNoAsistReservas },
-            { key: 'asistidas', label: 'Reservas asistidas', items: asistidasReservas }
-          ]
-          const ordered = (query && query !== '') ? [...groups].sort((a, b) => b.items.length - a.items.length) : groups
-          return ordered.map((g, idx) => {
-            const isActive = g.key === 'active'
-            const colSpan = isActive ? 5 : 4
-            return (
-              <div key={g.key} style={{ marginTop: idx === 0 ? 0 : '1.5rem' }}>
-                {/* (label removed to avoid duplicate small numbers above tables) */}
-                <table className="tabla-participante" style={{ color: '#000', marginTop: 0 }}>
-                  <thead>
+      {/* Render groups in order; when a query exists, show groups with matches first */}
+      {(() => {
+        const groups = [
+          { key: 'active', label: 'Reservas activas', items: activeReservas },
+          { key: 'cancelled', label: 'Reservas canceladas / no asistidas', items: cancelledOrNoAsistReservas },
+          { key: 'asistidas', label: 'Reservas asistidas', items: asistidasReservas }
+        ]
+        const ordered = (query && query !== '') ? [...groups].sort((a, b) => b.items.length - a.items.length) : groups
+        return ordered.map((g, idx) => {
+          const isActive = g.key === 'active'
+          const colSpan = isActive ? 5 : 4
+          return (
+            <div key={g.key} style={{ marginTop: idx === 0 ? 0 : '1.5rem' }}>
+              <table className="tabla-participante" style={{ color: '#000', marginTop: 0 }}>
+                <thead>
+                  <tr>
+                    <th>Sala</th>
+                    <th>Fecha</th>
+                    <th>Turno</th>
+                    <th>Estado</th>
+                    {isActive && <th>Acciones</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {g.items.length === 0 ? (
                     <tr>
-                      <th>Sala</th>
-                      <th>Fecha</th>
-                      <th>Turno</th>
-                      <th>Estado</th>
-                      {isActive && <th>Acciones</th>}
+                      <td colSpan={colSpan} className="sin-datos">{query && query !== '' ? 'No se encontraron resultados en esta sección' : (isActive ? 'No se encontraron reservas activas' : 'No hay reservas')}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {g.items.length === 0 ? (
-                      <tr>
-                        <td colSpan={colSpan} className="sin-datos">{query && query !== '' ? 'No se encontraron resultados en esta sección' : (isActive ? 'No se encontraron reservas activas' : 'No hay reservas')}</td>
+                  ) : (
+                    g.items.map((r) => (
+                      <tr key={`${g.key}_${r.id_reserva || r.id}`}>
+                        <td>{r.nombre_sala} {r.edificio ? `- ${r.edificio}` : ''}</td>
+                        <td>{editingId === (r.id_reserva || r.id) ? (<input type="date" value={editFecha} onChange={e => setEditFecha(e.target.value)} />) : (r.fecha || '—')}</td>
+                        <td>{r.turno && r.turno.hora_inicio ? `${r.turno.hora_inicio} - ${r.turno.hora_fin}` : (r.id_turno || (typeof r.turno === 'string' ? r.turno : (r.turno && r.turno.nombre) || '—'))}</td>
+                        <td>{r.estado || '—'}</td>
+                        {isActive && (
+                          <td>
+                            <button
+                              className="btn-danger"
+                              onClick={() => handleCancel(r.id_reserva || r.id)}
+                              disabled={actionLoading || ((r.estado || '').toString().toLowerCase() === 'cancelada')}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              className="btn-sec"
+                              onClick={() => startEdit(r)}
+                              disabled={actionLoading || ((r.estado || '').toString().toLowerCase() !== 'activa')}
+                              title={((r.estado || '').toString().toLowerCase() !== 'activa') ? 'Solo se puede editar reservas activas' : ''}
+                            >Editar</button>
+                          </td>
+                        )}
                       </tr>
-                    ) : (
-                      g.items.map((r) => (
-                        <tr key={`${g.key}_${r.id_reserva || r.id}`}>
-                          <td>{r.nombre_sala} {r.edificio ? `- ${r.edificio}` : ''}</td>
-                          <td>{r.fecha}</td>
-                          <td>{r.turno && r.turno.hora_inicio ? `${r.turno.hora_inicio} - ${r.turno.hora_fin}` : (r.id_turno || r.turno || '—')}</td>
-                          <td>{r.estado || '—'}</td>
-                          {isActive && (
-                            <td>
-                              <button
-                                className="btn-danger"
-                                onClick={() => handleCancel(r.id_reserva || r.id)}
-                                disabled={actionLoading || (r.estado && r.estado.toString().toLowerCase() === 'cancelada')}
-                              >
-                                Cancelar
-                              </button>
-                            </td>
-                          )}
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )
-          ) : (
-            <tr>
-              <td colSpan="5" className="sin-datos">No tienes reservas</td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-
-      
-          })
-        })()}
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )
+        })
+      })()}
     </div>
   )
 }
