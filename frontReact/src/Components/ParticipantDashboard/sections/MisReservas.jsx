@@ -322,19 +322,36 @@ export default function MisReservas() {
                         <td>{r.estado || '—'}</td>
                         {isActive && (
                           <td>
-                            <button
-                              className="btn-danger"
-                              onClick={() => handleCancel(r.id_reserva || r.id)}
-                              disabled={actionLoading || ((r.estado || '').toString().toLowerCase() === 'cancelada')}
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              className="btn-sec"
-                              onClick={() => startEdit(r)}
-                              disabled={actionLoading || ((r.estado || '').toString().toLowerCase() !== 'activa')}
-                              title={((r.estado || '').toString().toLowerCase() !== 'activa') ? 'Solo se puede editar reservas activas' : ''}
-                            >Editar</button>
+                            {editingId === (r.id_reserva || r.id) ? (
+                              <>
+                                <button
+                                  className="btn-sec"
+                                  onClick={() => saveEdit(r.id_reserva || r.id)}
+                                  disabled={actionLoading}
+                                >Guardar</button>
+                                <button
+                                  className="btn-link"
+                                  onClick={cancelEdit}
+                                  disabled={actionLoading}
+                                >Cancelar</button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  className="btn-danger"
+                                  onClick={() => handleCancel(r.id_reserva || r.id)}
+                                  disabled={actionLoading || ((r.estado || '').toString().toLowerCase() === 'cancelada')}
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  className="btn-sec"
+                                  onClick={() => startEdit(r)}
+                                  disabled={actionLoading || ((r.estado || '').toString().toLowerCase() !== 'activa')}
+                                  title={((r.estado || '').toString().toLowerCase() !== 'activa') ? 'Solo se puede editar reservas activas' : ''}
+                                >Editar</button>
+                              </>
+                            )}
                           </td>
                         )}
                       </tr>
