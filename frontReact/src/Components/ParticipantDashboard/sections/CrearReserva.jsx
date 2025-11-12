@@ -3,8 +3,11 @@
  */
 import { useState, useEffect } from 'react'
 import reservaService from '../../../services/reservaService'
+import sancionService from '../../../services/sancionService'
+import { useAuth } from '../../../hooks/useAuth'
 
 export default function CrearReserva({ tienesSanciones }) {
+  const { user } = useAuth()
   const [salas, setSalas] = useState([])
   // keep selected sala as index to access both nombre and edificio
   const [selectedSalaIndex, setSelectedSalaIndex] = useState('')
@@ -16,6 +19,8 @@ export default function CrearReserva({ tienesSanciones }) {
   const [mensaje, setMensaje] = useState(null)
   const [error, setError] = useState(null)
   const [invalidParticipants, setInvalidParticipants] = useState([])
+  const [bloqueadoPorSancion, setBloqueadoPorSancion] = useState(false)
+  const [detalleSancion, setDetalleSancion] = useState(null)
 
   useEffect(() => {
     const loadSalas = async () => {
@@ -29,6 +34,59 @@ export default function CrearReserva({ tienesSanciones }) {
     }
     loadSalas()
   }, [])
+
+  // check sanciones for this user and block if within 2 months
+  useEffect(() => {
+    const checkSanciones = async () => {
+      try {
+        const ci = user?.ci || user?.dni || user?.identificacion || user?.id || null
+        if (!ci) return
+        const res = await sancionService.listarSanciones(ci)
+        if (!res.ok) return
+        const data = Array.isArray(res.data) ? res.data : (res.data && res.data.sanciones) || []
+        if (!data || data.length === 0) return
+        const now = new Date()
+        // find any sanction that still blocks: either fecha_fin in future OR fecha_inicio within last 2 months
+        const blocked = data.some(s => {
+          const inicio = s.fecha_inicio || s.fechaInicio || s.fecha || null
+          const fin = s.fecha_fin || s.fechaFin || null
+          let inicioDate = inicio ? new Date(inicio) : null
+          let finDate = fin ? new Date(fin) : null
+          if (finDate && !isNaN(finDate.getTime()) && finDate.getTime() > now.getTime()) return true
+          if (inicioDate && !isNaN(inicioDate.getTime())) {
+            const limit = new Date(inicioDate)
+            limit.setMonth(limit.getMonth() + 2)
+            if (now.getTime() < limit.getTime()) return true
+          }
+          return false
+        })
+        if (blocked) {
+          setBloqueadoPorSancion(true)
+          // compute nearest release date for messaging
+          const releaseDates = data.map(s => {
+            const inicio = s.fecha_inicio || s.fechaInicio || s.fecha || null
+            const fin = s.fecha_fin || s.fechaFin || null
+            let inicioDate = inicio ? new Date(inicio) : null
+            let finDate = fin ? new Date(fin) : null
+            const candidates = []
+            if (finDate && !isNaN(finDate.getTime())) candidates.push(finDate)
+            if (inicioDate && !isNaN(inicioDate.getTime())) {
+              const d = new Date(inicioDate)
+              d.setMonth(d.getMonth() + 2)
+              candidates.push(d)
+            }
+            return candidates.length ? new Date(Math.max(...candidates.map(d => d.getTime()))) : null
+          }).filter(Boolean)
+          const finalRelease = releaseDates.length ? new Date(Math.max(...releaseDates.map(d => d.getTime()))) : null
+          setDetalleSancion(finalRelease ? `No puedes reservar hasta el ${finalRelease.toLocaleDateString()}` : 'Tienes sanciones vigentes')
+        }
+      } catch (e) {
+        // ignore check errors
+      }
+    }
+    checkSanciones()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user])
 
   useEffect(() => {
     // load turnos when both fecha and sala are selected
@@ -60,6 +118,17 @@ export default function CrearReserva({ tienesSanciones }) {
         <h1>Crear Reserva</h1>
         <div className="alert-banner alert-rojo">
           ⚠️ No puedes crear reservas - Tienes sanciones vigentes
+        </div>
+      </div>
+    )
+  }
+
+  if (bloqueadoPorSancion) {
+    return (
+      <div className="seccion">
+        <h1>Crear Reserva</h1>
+        <div className="alert-banner alert-rojo">
+          ⚠️ {detalleSancion || 'No puedes crear reservas: tienes sanciones vigentes.'}
         </div>
       </div>
     )
