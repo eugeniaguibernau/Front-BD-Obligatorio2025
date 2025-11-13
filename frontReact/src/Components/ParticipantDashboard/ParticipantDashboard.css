@@ -1,5 +1,13 @@
 /* Participant Dashboard Styles */
 
+:root {
+  --ucu-blue-900: #123a7a;
+  --ucu-blue-600: #081f86;
+  --ucu-gold: #f2c94c;
+  --accent-from: var(--ucu-blue-900);
+  --accent-to: var(--ucu-blue-600);
+}
+
 .participant-dashboard {
   display: flex;
   min-height: 100vh;
@@ -9,7 +17,8 @@
 /* SIDEBAR */
 .participant-sidebar {
   width: 280px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* solid UCU blue (no gradient) */
+  background: var(--ucu-blue-600);
   color: white;
   overflow-y: auto;
   display: flex;
@@ -69,12 +78,12 @@
 
 .menu-item:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.15);
-  border-left-color: #ffeb3b;
+  border-left-color: var(--ucu-gold);
 }
 
 .menu-item.activo {
   background: rgba(255, 255, 255, 0.2);
-  border-left-color: #ffeb3b;
+  border-left-color: var(--ucu-gold);
 }
 
 .menu-item:disabled {
@@ -156,7 +165,7 @@
 
 .seccion h1 {
   margin: 0 0 0.5rem 0;
-  color: #667eea;
+  color: var(--ucu-blue-600);
   font-size: 2rem;
 }
 
@@ -232,12 +241,13 @@
 }
 
 .resumen-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* solid UCU blue for cards */
+  background: var(--ucu-blue-600);
   color: white;
   padding: 1.5rem;
   border-radius: 8px;
   text-align: center;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+  box-shadow: 0 4px 12px rgba(11, 42, 120, 0.12);
 }
 
 .resumen-icon {
@@ -283,8 +293,8 @@
 .search-input:focus,
 .filter-select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--ucu-blue-600);
+  box-shadow: 0 0 0 3px rgba(43, 96, 211, 0.12);
 }
 
 /* TABLAS */
@@ -357,7 +367,7 @@
 /* BOTONES */
 .btn-primary {
   padding: 0.875rem 1.5rem;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--ucu-blue-600);
   color: white;
   border: none;
   border-radius: 6px;

@@ -66,8 +66,6 @@ export const ParticipantDashboard = () => {
           <button
             className={`menu-item ${seccionActiva === 'crear' ? 'activo' : ''}`}
             onClick={() => setSeccionActiva('crear')}
-            disabled={tienesSanciones}
-            title={tienesSanciones ? 'No puedes crear reservas con sanciones vigentes' : ''}
           >
             <span className="menu-icon">➕</span>
             <span className="menu-text">Crear Reserva</span>
