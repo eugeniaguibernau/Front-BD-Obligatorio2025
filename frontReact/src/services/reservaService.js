@@ -42,7 +42,7 @@ export const listarReservas = async (params = {}) => {
 
 export const obtenerReserva = async (id) => {
 	try {
-		const res = await fetch(`${API_BASE_URL}/reservas/${id}/`, { headers: buildHeaders() })
+		const res = await fetch(`${API_BASE_URL}/reservas/${id}`, { headers: buildHeaders() })
 		const handled = await handleResponse(res)
 		if (handled.unauthorized) return handled
 		const data = handled.data
@@ -72,7 +72,7 @@ export const crearReserva = async (payload) => {
 
 export const actualizarReserva = async (id, payload) => {
 	try {
-			const res = await fetch(`${API_BASE_URL}/reservas/${id}/`, {
+			const res = await fetch(`${API_BASE_URL}/reservas/${id}`, {
 				method: 'PUT',
 				headers: buildHeaders(),
 				body: JSON.stringify(payload),
@@ -89,7 +89,7 @@ export const actualizarReserva = async (id, payload) => {
 
 export const eliminarReserva = async (id) => {
 	try {
-			const res = await fetch(`${API_BASE_URL}/reservas/${id}/`, {
+			const res = await fetch(`${API_BASE_URL}/reservas/${id}`, {
 				method: 'DELETE',
 				headers: buildHeaders(),
 			})
@@ -105,7 +105,7 @@ export const eliminarReserva = async (id) => {
 
 export const marcarAsistencia = async (id_reserva, ci, asistencia) => {
 	try {
-			const res = await fetch(`${API_BASE_URL}/reservas/${id_reserva}/participantes/${ci}/asistencia/`, {
+			const res = await fetch(`${API_BASE_URL}/reservas/${id_reserva}/participantes/${ci}/asistencia`, {
 				method: 'POST',
 				headers: buildHeaders(),
 				body: JSON.stringify({ asistencia }),
@@ -115,6 +115,21 @@ export const marcarAsistencia = async (id_reserva, ci, asistencia) => {
 			const data = handled.data
 			if (!res.ok) return { ok: false, error: (data && data.error) || 'Error marcando asistencia' }
 			return { ok: true, data }
+	} catch (error) {
+		return { ok: false, error: error.message }
+	}
+}
+
+export const listarParticipantesReserva = async (id_reserva) => {
+	try {
+			const res = await fetch(`${API_BASE_URL}/reservas/${id_reserva}/participantes`, {
+				headers: buildHeaders()
+			})
+			const handled = await handleResponse(res)
+			if (handled.unauthorized) return handled
+			const data = handled.data
+			if (!res.ok) return { ok: false, error: (data && data.error) || 'Error obteniendo participantes' }
+			return { ok: true, data: (data && (data.participantes || data)) }
 	} catch (error) {
 		return { ok: false, error: error.message }
 	}
@@ -155,6 +170,7 @@ export default {
 	actualizarReserva,
 	eliminarReserva,
 	marcarAsistencia,
+	listarParticipantesReserva,
 	listarSalas,
 	listarTurnos,
 }
