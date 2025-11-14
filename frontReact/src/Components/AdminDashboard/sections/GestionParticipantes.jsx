@@ -160,7 +160,7 @@ export default function GestionParticipantes() {
       <div className="controles">
         <input
           type="text"
-          placeholder="Buscar por nombre, apellido o email..."
+          placeholder="Buscar por CI, nombre, apellido, email o tipo..."
           className="search-input"
           value={busqueda}
           onChange={(e) => handleBuscar(e.target.value)}

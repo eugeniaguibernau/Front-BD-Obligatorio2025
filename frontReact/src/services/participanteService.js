@@ -278,13 +278,23 @@ export const buscarParticipantes = async (termino) => {
       return resultado;
     }
 
-    // Filtramos localmente por nombre o apellido
-    const terminoLower = termino.toLowerCase();
-    const filtrados = resultado.data.filter(p => 
-      p.nombre.toLowerCase().includes(terminoLower) ||
-      p.apellido.toLowerCase().includes(terminoLower) ||
-      p.email.toLowerCase().includes(terminoLower)
-    );
+    // Filtramos localmente por nombre, apellido, email o CI
+    const terminoLower = String(termino).toLowerCase();
+    const filtrados = resultado.data.filter(p => {
+      const nombre = (p.nombre || '').toLowerCase()
+      const apellido = (p.apellido || '').toLowerCase()
+      const email = (p.email || '').toLowerCase()
+      const ciStr = p.ci !== undefined && p.ci !== null ? String(p.ci).toLowerCase() : ''
+      const tipoStr = (p.tipo_participante || p.tipo || '').toLowerCase()
+
+      return (
+        nombre.includes(terminoLower) ||
+        apellido.includes(terminoLower) ||
+        email.includes(terminoLower) ||
+        ciStr.includes(terminoLower) ||
+        tipoStr.includes(terminoLower)
+      )
+    });
 
     return {
       ok: true,
