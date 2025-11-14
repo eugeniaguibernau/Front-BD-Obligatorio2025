@@ -34,7 +34,7 @@ export const loginUser = async (correo, contraseña) => {
     // Guardar el token en localStorage
     if (data.token) {
       localStorage.setItem('auth_token', data.token);
-      localStorage.setItem('user_data', JSON.stringify(data.data));
+      // Ya NO guardamos user_data, se extrae del token
     }
 
     return {
@@ -59,12 +59,46 @@ export const getToken = () => {
 };
 
 /**
- * Obtiene los datos del usuario almacenados
+ * Decodifica el payload de un JWT (sin verificar firma - solo para leer datos)
+ * @param {string} token - JWT token
+ * @returns {object|null}
+ */
+const decodeJWT = (token) => {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('Error decodificando JWT:', error);
+    return null;
+  }
+};
+
+/**
+ * Obtiene los datos del usuario desde el token JWT
  * @returns {object|null}
  */
 export const getUserData = () => {
-  const userData = localStorage.getItem('user_data');
-  return userData ? JSON.parse(userData) : null;
+  const token = getToken();
+  if (!token) return null;
+
+  // Decodificar el JWT para obtener los datos reales
+  const payload = decodeJWT(token);
+  if (!payload) return null;
+
+  // El backend incluye estos campos en el JWT
+  return {
+    user_id: payload.user_id,
+    user_type: payload.user_type,
+    correo: payload.correo || payload.sub,
+    exp: payload.exp // Fecha de expiración
+  };
 };
 
 /**
@@ -72,7 +106,7 @@ export const getUserData = () => {
  */
 export const logout = () => {
   localStorage.removeItem('auth_token');
-  localStorage.removeItem('user_data');
+  // Ya no hay user_data para eliminar
 };
 
 /**
@@ -80,5 +114,21 @@ export const logout = () => {
  * @returns {boolean}
  */
 export const isAuthenticated = () => {
-  return !!localStorage.getItem('auth_token');
+  const token = getToken();
+  if (!token) return false;
+
+  // Verificar si el token ha expirado
+  const userData = getUserData();
+  if (!userData || !userData.exp) return false;
+
+  // exp está en segundos, Date.now() en milisegundos
+  const isExpired = userData.exp * 1000 < Date.now();
+  
+  if (isExpired) {
+    // Token expirado, limpiar
+    logout();
+    return false;
+  }
+
+  return true;
 };

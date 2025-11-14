@@ -295,7 +295,7 @@ export default function MisReservas() {
         const ordered = (query && query !== '') ? [...groups].sort((a, b) => b.items.length - a.items.length) : groups
         return ordered.map((g, idx) => {
           const isActive = g.key === 'active'
-          const colSpan = isActive ? 5 : 4
+          const colSpan = isActive ? 6 : 5 // Ahora hay 2 columnas más (Hora Inicio + Hora Fin)
           return (
             <div key={g.key} style={{ marginTop: idx === 0 ? 0 : '1.5rem' }}>
               <table className="tabla-participante" style={{ color: '#000', marginTop: 0 }}>
@@ -303,7 +303,8 @@ export default function MisReservas() {
                   <tr>
                     <th>Sala</th>
                     <th>Fecha</th>
-                    <th>Turno</th>
+                    <th>Hora Inicio</th>
+                    <th>Hora Fin</th>
                     <th>Estado</th>
                     {isActive && <th>Acciones</th>}
                   </tr>
@@ -318,7 +319,8 @@ export default function MisReservas() {
                       <tr key={`${g.key}_${r.id_reserva || r.id}`}>
                         <td>{r.nombre_sala} {r.edificio ? `- ${r.edificio}` : ''}</td>
                         <td>{editingId === (r.id_reserva || r.id) ? (<input type="date" value={editFecha} onChange={e => setEditFecha(e.target.value)} />) : (r.fecha || '—')}</td>
-                        <td>{r.turno && r.turno.hora_inicio ? `${r.turno.hora_inicio} - ${r.turno.hora_fin}` : (r.id_turno || (typeof r.turno === 'string' ? r.turno : (r.turno && r.turno.nombre) || '—'))}</td>
+                        <td>{r.turno && r.turno.hora_inicio ? r.turno.hora_inicio : '—'}</td>
+                        <td>{r.turno && r.turno.hora_fin ? r.turno.hora_fin : '—'}</td>
                         <td>{r.estado || '—'}</td>
                         {isActive && (
                           <td>
