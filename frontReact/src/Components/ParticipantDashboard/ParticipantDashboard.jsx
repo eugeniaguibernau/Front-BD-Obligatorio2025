@@ -20,7 +20,7 @@ export const ParticipantDashboard = () => {
   const renderizarSeccion = () => {
     switch (seccionActiva) {
       case 'dashboard':
-        return <DashboardPersonal tienesSanciones={tienesSanciones} />
+        return <DashboardPersonal tienesSanciones={tienesSanciones} setTienesSanciones={setTienesSanciones} />
       case 'reservas':
         return <MisReservas />
       case 'crear':
@@ -28,7 +28,7 @@ export const ParticipantDashboard = () => {
       case 'sanciones':
         return <MisSanciones setTienesSanciones={setTienesSanciones} />
       default:
-        return <DashboardPersonal tienesSanciones={tienesSanciones} />
+        return <DashboardPersonal tienesSanciones={tienesSanciones} setTienesSanciones={setTienesSanciones} />
     }
   }
 

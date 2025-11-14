@@ -70,7 +70,50 @@ export default function GestionSanciones() {
     setError(null);
     setSuccess(null);
 
-    const resultado = await sancionService.crearSancion(formCrear);
+    // Helper: formatea una fecha de entrada a YYYY-MM-DD usando UTC
+    const formatearFechaParaEnviar = (fecha) => {
+      if (!fecha) return null;
+      // Si ya viene como YYYY-MM-DD, tratarla como tal
+      // Construir una fecha UTC para evitar off-by-one por timezone
+      const d = new Date(fecha + 'T00:00:00');
+      if (isNaN(d.getTime())) return null;
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    // Validaciones básicas
+    const ci = formCrear.ci_participante && String(formCrear.ci_participante).trim();
+    if (!ci) {
+      setError('CI de participante es requerido');
+      setLoading(false);
+      return;
+    }
+
+    const inicio = formatearFechaParaEnviar(formCrear.fecha_inicio);
+    const fin = formatearFechaParaEnviar(formCrear.fecha_fin);
+    if (!inicio || !fin) {
+      setError('Fechas inválidas. Use el selector de fecha.');
+      setLoading(false);
+      return;
+    }
+
+    if (new Date(inicio + 'T00:00:00') > new Date(fin + 'T00:00:00')) {
+      setError('La fecha de inicio no puede ser posterior a la fecha fin');
+      setLoading(false);
+      return;
+    }
+
+    const payloadToSend = {
+      ci_participante: parseInt(ci),
+      fecha_inicio: inicio,
+      fecha_fin: fin
+    };
+
+    console.log('➡️ Enviando crear sancion payload:', payloadToSend);
+
+    const resultado = await sancionService.crearSancion(payloadToSend);
     setLoading(false);
 
     if (resultado.unauthorized) {
@@ -92,15 +135,41 @@ export default function GestionSanciones() {
   const handleEliminar = async () => {
     if (!sancionAEliminar) return;
 
+    console.log('🗑️ Intentando eliminar sanción:', sancionAEliminar);
+    
+    // Convertir fechas al formato YYYY-MM-DD que espera el backend
+    const formatearFecha = (fecha) => {
+      if (!fecha) return null;
+      const d = new Date(fecha);
+      if (isNaN(d.getTime())) return null;
+      // Usar UTC para evitar problemas de zona horaria
+      const year = d.getUTCFullYear();
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
+    const fechaInicioFormateada = formatearFecha(sancionAEliminar.fecha_inicio);
+    const fechaFinFormateada = formatearFecha(sancionAEliminar.fecha_fin);
+
+    console.log('  - CI:', sancionAEliminar.ci_participante);
+    console.log('  - Fecha inicio original:', sancionAEliminar.fecha_inicio);
+    console.log('  - Fecha inicio formateada:', fechaInicioFormateada);
+    console.log('  - Fecha fin original:', sancionAEliminar.fecha_fin);
+    console.log('  - Fecha fin formateada:', fechaFinFormateada);
+
     setLoading(true);
     setError(null);
     setSuccess(null);
 
     const resultado = await sancionService.eliminarSancion(
       sancionAEliminar.ci_participante,
-      sancionAEliminar.fecha_inicio,
-      sancionAEliminar.fecha_fin
+      fechaInicioFormateada,
+      fechaFinFormateada
     );
+    
+    console.log('📋 Resultado eliminación:', resultado);
+    
     setLoading(false);
 
     if (resultado.unauthorized) {
@@ -146,16 +215,21 @@ export default function GestionSanciones() {
 
   const formatearFecha = (fecha) => {
     if (!fecha) return '-';
-    const d = new Date(fecha + 'T00:00:00');
-    return d.toLocaleDateString('es-UY');
+    try {
+      const d = new Date(fecha);
+      if (isNaN(d.getTime())) return '-';
+      // Formato DD/MM/YYYY usando UTC
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const year = d.getUTCFullYear();
+      return `${day}/${month}/${year}`;
+    } catch (error) {
+      console.error('Error formateando fecha:', error);
+      return '-';
+    }
   };
 
-  const esActiva = (fecha_fin) => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const fin = new Date(fecha_fin + 'T00:00:00');
-    return fin >= hoy;
-  };
+  
 
   return (
     <div className="gestion-sanciones">
@@ -214,17 +288,16 @@ export default function GestionSanciones() {
           <table className="tabla-sanciones">
             <thead>
               <tr>
-                <th>CI Participante</th>
-                <th>Fecha Inicio</th>
-                <th>Fecha Fin</th>
-                <th>Estado</th>
-                <th>Acciones</th>
-              </tr>
+                  <th>CI Participante</th>
+                  <th>Fecha Inicio</th>
+                  <th>Fecha Fin</th>
+                  <th>Acciones</th>
+                </tr>
             </thead>
             <tbody>
               {sanciones.length === 0 ? (
                 <tr>
-                  <td colSpan="5" style={{ textAlign: 'center', padding: '2rem' }}>
+                  <td colSpan="4" style={{ textAlign: 'center', padding: '2rem' }}>
                     No hay sanciones registradas
                   </td>
                 </tr>
@@ -232,14 +305,9 @@ export default function GestionSanciones() {
                 sanciones.map((sancion, index) => (
                   <tr key={index}>
                     <td>{sancion.ci_participante}</td>
-                    <td>{formatearFecha(sancion.fecha_inicio)}</td>
-                    <td>{formatearFecha(sancion.fecha_fin)}</td>
-                    <td>
-                      <span className={`badge ${esActiva(sancion.fecha_fin) ? 'badge-activa' : 'badge-vencida'}`}>
-                        {esActiva(sancion.fecha_fin) ? '🔴 Activa' : '✅ Vencida'}
-                      </span>
-                    </td>
-                    <td>
+                        <td>{formatearFecha(sancion.fecha_inicio)}</td>
+                        <td>{formatearFecha(sancion.fecha_fin)}</td>
+                        <td>
                       <button
                         className="btn-eliminar"
                         onClick={() => {

@@ -50,7 +50,24 @@ async function listarSanciones(ci = null, activas = false) {
     }
 
     const data = await response.json();
-    console.log('Respuesta del servidor:', data);
+    console.log('📥 Respuesta del servidor:', data);
+    
+    // Extraer resumen PRIMERO - puede venir en data.resumen o directamente en data
+    let resumen = null;
+    if (data.resumen) {
+      console.log('✅ Encontré data.resumen');
+      resumen = data.resumen;
+    } else if (data.total_sanciones !== undefined) {
+      console.log('✅ Construyendo resumen desde data directa');
+      resumen = {
+        total_sanciones: data.total_sanciones,
+        total_dias_sancionados: data.total_dias_sancionados,
+        datos_restantes_total: data.datos_restantes_total
+      };
+      console.log('📊 Resumen construido:', resumen);
+    } else {
+      console.log('❌ No hay total_sanciones en data');
+    }
     
     // Extraer sanciones - puede venir en data.sanciones o directamente
     let sanciones = data.sanciones || data;
@@ -63,8 +80,13 @@ async function listarSanciones(ci = null, activas = false) {
       }
     }
     
-    console.log('Sanciones finales:', sanciones);
-    return { ok: true, data: Array.isArray(sanciones) ? sanciones : [] };
+    const resultado = { 
+      ok: true, 
+      data: Array.isArray(sanciones) ? sanciones : [],
+      resumen: resumen
+    };
+    console.log('🎁 Retornando:', resultado);
+    return resultado;
   } catch (error) {
     console.error('Error en listarSanciones:', error);
     return { ok: false, error: 'Error de conexión' };
@@ -111,26 +133,35 @@ async function crearSancion(sancionData) {
  */
 async function eliminarSancion(ci_participante, fecha_inicio, fecha_fin) {
   try {
+    const payload = {
+      ci_participante,
+      fecha_inicio,
+      fecha_fin
+    };
+    
+    console.log('🔥 Enviando DELETE con payload:', payload);
+    
     const response = await fetch(`${API_URL}/sanciones/`, {
       method: 'DELETE',
       headers: getHeaders(),
-      body: JSON.stringify({
-        ci_participante,
-        fecha_inicio,
-        fecha_fin
-      })
+      body: JSON.stringify(payload)
     });
+
+    console.log('📡 Respuesta del servidor:', response.status, response.statusText);
 
     if (response.status === 401) {
       return { ok: false, unauthorized: true };
     }
 
     if (response.status === 404) {
+      const errorData = await response.json();
+      console.log('❌ Error 404:', errorData);
       return { ok: false, error: 'Sanción no encontrada' };
     }
 
     if (!response.ok) {
       const errorData = await response.json();
+      console.log('❌ Error:', errorData);
       return { ok: false, error: errorData.error || 'Error al eliminar sanción' };
     }
 

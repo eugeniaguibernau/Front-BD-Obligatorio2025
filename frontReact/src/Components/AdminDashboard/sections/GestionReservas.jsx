@@ -412,7 +412,6 @@ export default function GestionReservas() {
             <th>Sala</th>
             <th>Edificio</th>
             <th>Fecha</th>
-            <th>Turno</th>
             <th>Estado</th>
             <th>Acciones</th>
           </tr>
@@ -425,15 +424,6 @@ export default function GestionReservas() {
                 <td>{reserva.nombre_sala}</td>
                 <td>{reserva.edificio}</td>
                 <td>{reserva.fecha}</td>
-                <td>
-                  {reserva.turnos && reserva.turnos.length > 0 
-                    ? reserva.turnos.map(t => `${t.hora_inicio}-${t.hora_fin}`).join(', ')
-                    : (reserva.hora_inicio && reserva.hora_fin 
-                      ? `${reserva.hora_inicio} - ${reserva.hora_fin}`
-                      : `ID: ${reserva.id_turno || 'N/A'}`
-                    )
-                  }
-                </td>
                 <td>{getBadgeEstado(reserva.estado_actual || reserva.estado)}</td>
                 <td>
                   <button
@@ -465,7 +455,7 @@ export default function GestionReservas() {
             ))
           ) : (
             <tr>
-              <td colSpan="7" className="sin-datos">
+              <td colSpan="6" className="sin-datos">
                 {busqueda || filtroEstado ? 'No se encontraron reservas con los filtros aplicados' : 'No hay reservas registradas'}
               </td>
             </tr>

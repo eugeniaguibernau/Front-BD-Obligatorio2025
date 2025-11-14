@@ -24,6 +24,7 @@ export default function GestionParticipantes() {
     nombre: '',
     apellido: '',
     email: '',
+    tipo: 'Estudiante', // Opciones: Estudiante, Docente, Postgrado, Otro
   })
 
   // Cargar participantes al montar el componente
@@ -65,7 +66,7 @@ export default function GestionParticipantes() {
 
   const abrirModalCrear = () => {
     setModoModal('crear')
-    setFormData({ ci: '', nombre: '', apellido: '', email: '' })
+    setFormData({ ci: '', nombre: '', apellido: '', email: '', tipo: 'Estudiante' })
     setParticipanteSeleccionado(null)
     setMostrarModal(true)
   }
@@ -77,6 +78,8 @@ export default function GestionParticipantes() {
       nombre: participante.nombre,
       apellido: participante.apellido,
       email: participante.email,
+      // soportar diferentes nombres de campo provenientes del backend
+      tipo: participante.tipo || participante.tipo_participante || 'Estudiante',
     })
     setParticipanteSeleccionado(participante)
     setMostrarModal(true)
@@ -84,7 +87,7 @@ export default function GestionParticipantes() {
 
   const cerrarModal = () => {
     setMostrarModal(false)
-    setFormData({ ci: '', nombre: '', apellido: '', email: '' })
+    setFormData({ ci: '', nombre: '', apellido: '', email: '', tipo: 'Estudiante' })
     setParticipanteSeleccionado(null)
     setError('')
   }
@@ -109,6 +112,9 @@ export default function GestionParticipantes() {
       if (formData.nombre !== participanteSeleccionado.nombre) cambios.nombre = formData.nombre
       if (formData.apellido !== participanteSeleccionado.apellido) cambios.apellido = formData.apellido
       if (formData.email !== participanteSeleccionado.email) cambios.email = formData.email
+  // Comparar tipo (soportar distintas claves desde el backend)
+  const originalTipo = participanteSeleccionado.tipo || participanteSeleccionado.tipo_participante || 'Estudiante'
+  if (formData.tipo !== originalTipo) cambios.tipo = formData.tipo
 
       if (Object.keys(cambios).length === 0) {
         alert('No hay cambios para guardar')
@@ -174,13 +180,14 @@ export default function GestionParticipantes() {
               <th>Nombre</th>
               <th>Apellido</th>
               <th>Email</th>
+              <th>Tipo</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {participantes.length === 0 ? (
               <tr>
-                <td colSpan="5" className="sin-datos">
+                <td colSpan="6" className="sin-datos">
                   {busqueda ? 'No se encontraron participantes' : 'No hay participantes'}
                 </td>
               </tr>
@@ -191,6 +198,7 @@ export default function GestionParticipantes() {
                   <td>{p.nombre}</td>
                   <td>{p.apellido}</td>
                   <td>{p.email}</td>
+                  <td>{p.tipo_participante || p.tipo || 'No especificado'}</td>
                   <td>
                     <button
                       className="btn-action btn-editar"
@@ -275,6 +283,22 @@ export default function GestionParticipantes() {
                   required
                   className="form-input"
                 />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="tipo">Tipo de participante *</label>
+                <select
+                  id="tipo"
+                  value={formData.tipo}
+                  onChange={(e) => setFormData({ ...formData, tipo: e.target.value })}
+                  className="form-input"
+                  required
+                >
+                  <option value="Estudiante">Estudiante</option>
+                  <option value="Docente">Docente</option>
+                  <option value="Postgrado">Postgrado</option>
+                  <option value="Otro">Otro</option>
+                </select>
               </div>
 
               <div className="modal-actions">

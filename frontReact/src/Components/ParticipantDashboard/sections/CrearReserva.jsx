@@ -13,7 +13,7 @@ export default function CrearReserva({ tienesSanciones }) {
   const [selectedSalaIndex, setSelectedSalaIndex] = useState('')
   const [fecha, setFecha] = useState('')
   const [turnos, setTurnos] = useState([])
-  const [selectedTurnoId, setSelectedTurnoId] = useState('')
+  const [selectedTurnosIds, setSelectedTurnosIds] = useState([]) // Array para múltiples turnos
   const [participantesText, setParticipantesText] = useState('')
   const [loading, setLoading] = useState(false)
   const [mensaje, setMensaje] = useState(null)
@@ -92,7 +92,7 @@ export default function CrearReserva({ tienesSanciones }) {
     // load turnos when both fecha and sala are selected
     const loadTurnos = async () => {
       setTurnos([])
-      setSelectedTurnoId('')
+      setSelectedTurnosIds([])
       setError(null)
       if (selectedSalaIndex === '' || !fecha) return
       const s = salas[Number(selectedSalaIndex)]
@@ -119,6 +119,10 @@ export default function CrearReserva({ tienesSanciones }) {
         <div className="alert-banner alert-rojo">
           ⚠️ No puedes crear reservas - Tienes sanciones vigentes
         </div>
+        <p style={{ marginTop: '1rem', color: '#666', fontSize: '0.95rem' }}>
+          Para poder crear reservas, debes esperar a que finalicen tus sanciones activas. 
+          Puedes ver el detalle en la sección "Mis Sanciones".
+        </p>
       </div>
     )
   }
@@ -146,14 +150,37 @@ export default function CrearReserva({ tienesSanciones }) {
       .filter(Boolean)
       .map(s => (isNaN(Number(s)) ? s : Number(s)))
 
-    // Build payload using nombre_sala and edificio (backend expects these)
+    // Validar que haya al menos un turno seleccionado
+    if (selectedTurnosIds.length === 0) {
+      setError('Debe seleccionar al menos un turno')
+      setLoading(false)
+      return
+    }
+
+    // Build payload usando nombre_sala, edificio y múltiples turnos
     let payload = {
       fecha: fecha,
       participantes,
     }
 
-    if (selectedTurnoId !== '') {
-      payload.id_turno = Number(selectedTurnoId)
+    // Función para formatear horas con padding (HH:MM:SS)
+    const formatearHora = (hora) => {
+      if (!hora) return hora
+      const partes = hora.split(':')
+      return partes.map(p => p.padStart(2, '0')).join(':')
+    }
+
+    // Agregar turnos con formato completo (como en el admin)
+    if (selectedTurnosIds.length > 0) {
+      payload.turnos = selectedTurnosIds.map(idTurno => {
+        const turno = turnos.find(t => t.id_turno === Number(idTurno))
+        if (!turno) return null
+        return {
+          id_turno: Number(idTurno),
+          hora_inicio: formatearHora(turno.hora_inicio),
+          hora_fin: formatearHora(turno.hora_fin)
+        }
+      }).filter(Boolean)
     }
 
     if (selectedSalaIndex !== '') {
@@ -188,7 +215,7 @@ export default function CrearReserva({ tienesSanciones }) {
     setMensaje('Reserva creada correctamente')
     setSelectedSalaIndex('')
     setFecha('')
-    setSelectedTurnoId('')
+    setSelectedTurnosIds([])
     setParticipantesText('')
   }
 
@@ -209,6 +236,26 @@ export default function CrearReserva({ tienesSanciones }) {
     let payload = {
         fecha: fecha,
         participantes,
+    }
+
+    // Función para formatear horas con padding (HH:MM:SS)
+    const formatearHora = (hora) => {
+      if (!hora) return hora
+      const partes = hora.split(':')
+      return partes.map(p => p.padStart(2, '0')).join(':')
+    }
+
+    // Agregar turnos
+    if (selectedTurnosIds.length > 0) {
+      payload.turnos = selectedTurnosIds.map(idTurno => {
+        const turno = turnos.find(t => t.id_turno === Number(idTurno))
+        if (!turno) return null
+        return {
+          id_turno: Number(idTurno),
+          hora_inicio: formatearHora(turno.hora_inicio),
+          hora_fin: formatearHora(turno.hora_fin)
+        }
+      }).filter(Boolean)
     }
 
     if (selectedSalaIndex !== '') {
@@ -236,10 +283,10 @@ export default function CrearReserva({ tienesSanciones }) {
   setMensaje('Reserva creada correctamente')
   setSelectedSalaIndex('')
   setFecha('')
-  setSelectedTurnoId('')
+  setSelectedTurnosIds([])
   setParticipantesText('')
-    setInvalidParticipants([])
-  }
+  setInvalidParticipants([])
+}
 
   return (
     <div className="seccion">
@@ -283,18 +330,55 @@ export default function CrearReserva({ tienesSanciones }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="turno">Turno</label>
+          <label htmlFor="turno">Turno (máximo 2 consecutivos)</label>
           {turnos.length === 0 ? (
             <div className="form-input">Seleccione fecha y sala para ver los turnos disponibles.</div>
           ) : (
-            <select id="turno" className="form-input" value={selectedTurnoId} onChange={e => setSelectedTurnoId(e.target.value)}>
-              <option value="">-- Seleccione un turno --</option>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {turnos.map((t, i) => (
-                <option key={t.id_turno ?? t.id ?? i} value={String(t.id_turno ?? t.id ?? i)} disabled={t.disponible === false}>
-                  {`${(t.hora_inicio?.slice(0,5) ?? '')} - ${(t.hora_fin?.slice(0,5) ?? '')}${t.disponible === false ? ' (ocupado)' : ''}`}
-                </option>
+                <label 
+                  key={t.id_turno ?? t.id ?? i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '10px',
+                    border: selectedTurnosIds.includes(t.id_turno) ? '2px solid #2196F3' : '1px solid #ddd',
+                    borderRadius: '4px',
+                    backgroundColor: selectedTurnosIds.includes(t.id_turno) ? '#e3f2fd' : 'white',
+                    cursor: t.disponible === false ? 'not-allowed' : 'pointer',
+                    opacity: t.disponible === false ? 0.5 : 1
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTurnosIds.includes(t.id_turno)}
+                    disabled={t.disponible === false}
+                    onChange={(e) => {
+                      const isChecked = e.target.checked
+                      setSelectedTurnosIds(prev => {
+                        let nuevosSeleccionados = [...prev]
+                        
+                        if (isChecked) {
+                          // Solo permitir máximo 2 turnos
+                          if (nuevosSeleccionados.length >= 2) {
+                            alert('Solo puede seleccionar máximo 2 turnos consecutivos (máximo 2 horas)')
+                            return prev
+                          }
+                          nuevosSeleccionados.push(t.id_turno)
+                        } else {
+                          nuevosSeleccionados = nuevosSeleccionados.filter(id => id !== t.id_turno)
+                        }
+                        
+                        return nuevosSeleccionados
+                      })
+                    }}
+                    style={{ marginRight: '10px' }}
+                  />
+                  <strong>{t.hora_inicio?.slice(0,5) ?? ''} - {t.hora_fin?.slice(0,5) ?? ''}</strong>
+                  {t.disponible === false && <span style={{ marginLeft: '10px', color: '#999' }}>(ocupado)</span>}
+                </label>
               ))}
-            </select>
+            </div>
           )}
         </div>
 

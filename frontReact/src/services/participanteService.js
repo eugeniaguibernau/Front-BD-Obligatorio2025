@@ -116,11 +116,18 @@ export const obtenerParticipante = async (ci, detailed = false) => {
  */
 export const crearParticipante = async (participante) => {
   try {
+    // Mapear campo 'tipo' del formulario a 'tipo_participante' esperado por el backend
+    const payload = { ...participante }
+    // Asegurar que siempre enviamos 'tipo_participante' (fallbacks: tipo_participante | tipo | 'Estudiante')
+    payload.tipo_participante = payload.tipo_participante || payload.tipo || 'Estudiante'
+    // eliminar 'tipo' para no enviar claves duplicadas
+    if (payload.tipo) delete payload.tipo
+
     const response = await fetch(`${API_BASE_URL}/participantes/`, {
       method: 'POST',
       headers: getAuthHeaders(),
       credentials: 'include',
-      body: JSON.stringify(participante),
+      body: JSON.stringify(payload),
     });
 
     const data = await response.json();
@@ -152,11 +159,19 @@ export const crearParticipante = async (participante) => {
  */
 export const actualizarParticipante = async (ci, datos) => {
   try {
+    // Evitar mutar el objeto original
+    const payloadDatos = { ...datos }
+    // Asegurar que si se modifica/indica tipo se envíe como 'tipo_participante'
+    if (payloadDatos.tipo || payloadDatos.tipo_participante) {
+      payloadDatos.tipo_participante = payloadDatos.tipo_participante || payloadDatos.tipo || 'Estudiante'
+      if (payloadDatos.tipo) delete payloadDatos.tipo
+    }
+
     const response = await fetch(`${API_BASE_URL}/participantes/${ci}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       credentials: 'include',
-      body: JSON.stringify(datos),
+      body: JSON.stringify(payloadDatos),
     });
 
     const data = await response.json();
