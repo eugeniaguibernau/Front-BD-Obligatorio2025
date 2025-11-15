@@ -174,6 +174,40 @@ async function eliminarSancion(ci_participante, fecha_inicio, fecha_fin) {
 }
 
 /**
+ * Actualizar (modificar) una sanción existente.
+ * Implementación defensiva: intenta eliminar la sanción existente y crear una nueva
+ * con las fechas actualizadas. Esto evita depender de un endpoint PUT/UPDATE
+ * que pueda no estar disponible en el backend.
+ * @param {number} ci_participante
+ * @param {string} fecha_inicio_actual - YYYY-MM-DD
+ * @param {string} fecha_fin_actual - YYYY-MM-DD
+ * @param {string} fecha_inicio_nueva - YYYY-MM-DD
+ * @param {string} fecha_fin_nueva - YYYY-MM-DD
+ */
+async function actualizarSancion(ci_participante, fecha_inicio_actual, fecha_fin_actual, fecha_inicio_nueva, fecha_fin_nueva) {
+  try {
+    // Primero eliminar la sanción antigua
+    const delRes = await eliminarSancion(ci_participante, fecha_inicio_actual, fecha_fin_actual)
+    if (!delRes.ok) {
+      return { ok: false, error: delRes.error || 'No se pudo eliminar la sanción original' }
+    }
+
+    // Luego crear la nueva con las fechas actualizadas
+    const payload = {
+      ci_participante: ci_participante,
+      fecha_inicio: fecha_inicio_nueva,
+      fecha_fin: fecha_fin_nueva
+    }
+    const createRes = await crearSancion(payload)
+    if (!createRes.ok) return { ok: false, error: createRes.error || 'No se pudo crear la sanción actualizada' }
+    return { ok: true, data: createRes.data }
+  } catch (error) {
+    console.error('Error en actualizarSancion:', error)
+    return { ok: false, error: 'Error de conexión' }
+  }
+}
+
+/**
  * Aplicar sanciones por reserva (si nadie asistió)
  * @param {number} idReserva - ID de la reserva
  * @param {number} sancionDias - Días de sanción (default: 60)
@@ -269,6 +303,7 @@ const sancionService = {
   listarSanciones,
   crearSancion,
   eliminarSancion,
+  actualizarSancion,
   aplicarSancionesPorReserva,
   procesarReservasVencidas,
   extenderSanciones

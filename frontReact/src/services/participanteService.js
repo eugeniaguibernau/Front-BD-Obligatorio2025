@@ -70,6 +70,47 @@ export const listarParticipantes = async (limit = null, offset = null) => {
 };
 
 /**
+ * Lista programas académicos / carreras disponibles
+ * Nota: asumimos el endpoint `/programas/` en el backend. Si difiere, ajustar ruta.
+ */
+export const listarProgramas = async () => {
+  try {
+    const url = `${API_BASE_URL}/programas/`;
+
+    // Intento simple: hacer una GET sin headers ni credentials para evitar preflight CORS
+    // Muchos endpoints públicos permiten esta llamada y con ello se evita el OPTIONS
+    let response
+    try {
+      response = await fetch(url, { method: 'GET' })
+    } catch (err) {
+      // Si falla la llamada simple (p. ej. la API requiere auth o bloquea conexiones), reintentamos con auth
+      console.warn('listarProgramas: simple fetch failed, retrying with auth headers', err)
+      response = await fetch(url, {
+        method: 'GET',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+      })
+    }
+
+    if (response.status === 404) {
+      // Backend no expone programas en este endpoint — devolver lista vacía para no romper la UI
+      return { ok: true, data: [] };
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return { ok: false, error: data.error || 'Error al listar programas' };
+    }
+
+    // Intentar retornar una propiedad 'programas' si el backend la usa, o el body como lista
+    return { ok: true, data: data.programas || data || [] };
+  } catch (error) {
+    return { ok: false, error: error.message || 'Error de conexión' };
+  }
+};
+
+/**
  * Obtiene un participante por CI
  * @param {number} ci - CI del participante
  * @param {boolean} detailed - Si incluir programas académicos
@@ -118,10 +159,11 @@ export const crearParticipante = async (participante) => {
   try {
     // Mapear campo 'tipo' del formulario a 'tipo_participante' esperado por el backend
     const payload = { ...participante }
-    // Asegurar que siempre enviamos 'tipo_participante' (fallbacks: tipo_participante | tipo | 'Estudiante')
+    // Asegurar que siempre enviamos 'tipo_participante' y también 'tipo' por compatibilidad
     payload.tipo_participante = payload.tipo_participante || payload.tipo || 'Estudiante'
-    // eliminar 'tipo' para no enviar claves duplicadas
-    if (payload.tipo) delete payload.tipo
+    payload.tipo = payload.tipo || payload.tipo_participante
+    // Incluir programa si el formulario lo envía (soportar variantes de clave)
+    payload.programa = participante.programa || participante.programa_id || participante.programa_academico || payload.programa || null
 
     const response = await fetch(`${API_BASE_URL}/participantes/`, {
       method: 'POST',
@@ -164,7 +206,12 @@ export const actualizarParticipante = async (ci, datos) => {
     // Asegurar que si se modifica/indica tipo se envíe como 'tipo_participante'
     if (payloadDatos.tipo || payloadDatos.tipo_participante) {
       payloadDatos.tipo_participante = payloadDatos.tipo_participante || payloadDatos.tipo || 'Estudiante'
-      if (payloadDatos.tipo) delete payloadDatos.tipo
+      payloadDatos.tipo = payloadDatos.tipo || payloadDatos.tipo_participante
+    }
+    // Si se envía programa en los cambios, asegurarnos de usar la clave 'programa'
+    if (payloadDatos.programa || payloadDatos.programa_id || payloadDatos.programa_academico) {
+      payloadDatos.programa = payloadDatos.programa || payloadDatos.programa_id || payloadDatos.programa_academico
+      // no borrar las variantes, backend debería aceptar 'programa'
     }
 
     const response = await fetch(`${API_BASE_URL}/participantes/${ci}`, {

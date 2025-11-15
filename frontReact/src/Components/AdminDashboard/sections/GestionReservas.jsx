@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import reservaService from '../../../services/reservaService'
 import { useAuth } from '../../../hooks/useAuth'
 
-const ESTADOS = ['activa', 'cancelada', 'sin asistencia', 'finalizada']
+const ESTADOS = ['activa', 'cancelada', 'sin asistencia', 'finalizada', 'asistida']
 
 export default function GestionReservas() {
   const { logout } = useAuth()
@@ -116,7 +116,8 @@ export default function GestionReservas() {
 
   const abrirModalEstado = (reserva) => {
     setReservaSeleccionada(reserva)
-    setNuevoEstado(reserva.estado || 'activa')
+    // Preferir el estado calculado por el backend si está disponible
+    setNuevoEstado((reserva.estado_actual || reserva.estado) || 'activa')
     setShowModalEstado(true)
   }
 
@@ -129,6 +130,30 @@ export default function GestionReservas() {
   const handleActualizarEstado = async (e) => {
     e.preventDefault()
     setMessage(null)
+
+    // If user selected 'asistida', try to mark all participants as present first
+    if ((nuevoEstado || '').toString().toLowerCase() === 'asistida') {
+      try {
+        // obtener participantes
+        const partRes = await reservaService.listarParticipantesReserva(reservaSeleccionada.id_reserva)
+        if (partRes && partRes.ok && Array.isArray(partRes.data)) {
+          // marcar asistencia=true para cada participante (se hace en serie para simplicidad)
+          for (const p of partRes.data) {
+            try {
+              const ci = p.ci || p.ci_participante || p.cedula || p.identificacion
+              if (!ci) continue
+              // eslint-disable-next-line no-await-in-loop
+              await reservaService.marcarAsistencia(reservaSeleccionada.id_reserva, ci, true)
+            } catch (e) {
+              // ignorar errores individuales pero loguear
+              console.warn('No se pudo marcar asistencia para participante', p, e)
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('Error marcando asistencia antes de actualizar estado a asistida', e)
+      }
+    }
 
     const res = await reservaService.actualizarReserva(reservaSeleccionada.id_reserva, {
       estado: nuevoEstado
@@ -144,11 +169,19 @@ export default function GestionReservas() {
       return
     }
 
-    setMessage('Estado actualizado correctamente')
-    if (res.data.sanciones) {
-      setMessage(`Estado actualizado. Sanciones aplicadas: ${res.data.sanciones.aplicadas}`)
+    // Preferir mostrar el estado que el backend aplicó (estado_aplicado)
+    const estadoAplicado = res.data && (res.data.estado_aplicado || res.data.estado_aplicado_en_backend || null)
+    if (estadoAplicado) {
+      setMessage(`Estado actualizado correctamente: ${estadoAplicado}`)
+    } else {
+      setMessage('Estado actualizado correctamente')
     }
-    
+
+    if (res.data && res.data.sanciones) {
+      setMessage(prev => `${prev} Sanciones aplicadas: ${res.data.sanciones.aplicadas}`)
+    }
+
+    // cerrar modal y refrescar lista para mostrar el estado real del servidor
     cerrarModalEstado()
     fetchReservas()
   }
@@ -216,7 +249,8 @@ export default function GestionReservas() {
     if (estadoLower === 'activa') return <span className="badge-libre">Activa</span>
     if (estadoLower === 'cancelada') return <span className="badge-posgrado">Cancelada</span>
     if (estadoLower === 'sin asistencia') return <span className="badge-docente">Sin Asistencia</span>
-    if (estadoLower === 'finalizada') return <span className="badge-libre">Finalizada</span>
+  if (estadoLower === 'finalizada') return <span className="badge-libre">Finalizada</span>
+  if (estadoLower === 'asistida') return <span className="badge-docente">Asistida</span>
     
     return <span>{estado}</span>
   }

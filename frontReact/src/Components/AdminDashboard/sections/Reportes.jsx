@@ -1,9 +1,12 @@
 /**
  * Reportes & Métricas - 11 reportes completos
  */
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../../hooks/useAuth'
 import reporteService from '../../../services/reporteService'
+import { listarSalas } from '../../../services/salaService'
+import { listarSalas as listarSalasReserva } from '../../../services/reservaService'
+import { getToken } from '../../../services/authService'
 
 export default function Reportes() {
   const { logout } = useAuth()
@@ -19,6 +22,8 @@ export default function Reportes() {
   // Filtros específicos
   const [limit, setLimit] = useState(10)
   const [edificio, setEdificio] = useState('')
+  const [edificios, setEdificios] = useState([])
+  const [facultades, setFacultades] = useState([])
   const [facultad, setFacultad] = useState('')
   const [rol, setRol] = useState('')
   const [minSanciones, setMinSanciones] = useState(2)
@@ -140,11 +145,18 @@ export default function Reportes() {
         case 5:
           resultado = await reporteService.getOcupacionPorEdificio(fechaInicio, fechaFin)
           break
-        case 6:
-          resultado = await reporteService.getReservasYAsistenciaPorRol(fechaInicio, fechaFin, rol)
-          break
-        case 7:
-          resultado = await reporteService.getSancionesPorRol(fechaInicio, fechaFin, rol)
+          case 6:
+            // Map UI rol to backend-expected rol when necessary (postgrado -> alumno)
+            {
+              const rolBackend = rol === 'postgrado' ? 'alumno' : rol || null
+              resultado = await reporteService.getReservasYAsistenciaPorRol(fechaInicio, fechaFin, rolBackend)
+            }
+            break
+          case 7:
+            {
+              const rolBackend = rol === 'postgrado' ? 'alumno' : rol || null
+              resultado = await reporteService.getSancionesPorRol(fechaInicio, fechaFin, rolBackend)
+            }
           break
         case 8:
           resultado = await reporteService.getReservasUtilizadasVsCanceladas(fechaInicio, fechaFin)
@@ -199,6 +211,129 @@ export default function Reportes() {
     setLoading(false)
   }
 
+  // Cargar lista de edificios (extraída de las salas) para los selects de filtro
+  useEffect(() => {
+    const cargarFacultadesDesdeAPI = async () => {
+      try {
+        const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000'
+        const posibles = [
+  ,
+          '/api/facultad',
+          '/programas/facultades',
+        ]
+        const token = getToken()
+        const headers = token ? { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } : { 'Content-Type': 'application/json' }
+
+        for (const p of posibles) {
+          try {
+            const res = await fetch(`${API_BASE}${p}`, { headers })
+            if (!res.ok) continue
+            let data = null
+            try { data = await res.json() } catch (e) { data = null }
+            if (!data) continue
+
+            // intentos comunes para extraer array
+            const arr = data.facultades || data.data || data || null
+            if (!arr || !Array.isArray(arr) || arr.length === 0) continue
+
+            const names = arr.map((item) => {
+              if (!item) return null
+              if (typeof item === 'string') return item
+              return item.nombre || item.name || item.nombre_facultad || item.facultad_nombre || null
+            }).filter(Boolean).map(s => s.trim()).filter(Boolean)
+
+            if (names.length > 0) {
+              // eliminar duplicados y ordenar
+              const unique = Array.from(new Set(names)).sort()
+              setFacultades(unique)
+              console.info('Reportes: facultades cargadas desde', p, unique)
+              return
+            }
+          } catch (e) {
+            // intentar siguiente endpoint
+            continue
+          }
+        }
+        // si llegamos acá, no se encontraron facultades en endpoints
+      } catch (e) {
+        console.warn('Error cargando facultades desde API:', e)
+      }
+    }
+
+    cargarFacultadesDesdeAPI()
+
+    const cargarEdificios = async () => {
+      try {
+        let res = await listarSalas()
+        // fallback to reservaService if salaService returns empty or non-ok
+        if (!res || !res.ok || !Array.isArray(res.data) || res.data.length === 0) {
+          try {
+            res = await listarSalasReserva()
+          } catch (e) {
+            // ignore
+          }
+        }
+
+        if (res && res.ok && Array.isArray(res.data)) {
+          const keys = ['edificio', 'campus', 'sede', 'facultad', 'departamento']
+          const set = new Set()
+          res.data.forEach((s) => {
+            if (!s || typeof s !== 'object') return
+            for (const k of keys) {
+              const v = s[k]
+              if (v && typeof v === 'string') set.add(v.trim())
+            }
+          })
+          const unique = Array.from(set).filter(Boolean).sort()
+          setEdificios(unique)
+
+          // Extraer específicamente las facultades si existen en los datos.
+          // Buscamos en múltiples claves posibles y soportamos valores string o
+          // objetos con un campo nombre/name.
+          const facKeys = ['facultad', 'facultad_nombre', 'unidad', 'departamento', 'faculty', 'fac']
+          const facSet = new Set()
+          res.data.forEach((s) => {
+            if (!s || typeof s !== 'object') return
+
+            for (const key of facKeys) {
+              const val = s[key]
+              if (!val) continue
+
+              if (typeof val === 'string') {
+                facSet.add(val.trim())
+                break
+              }
+
+              // Si viene como objeto, intentar extraer nombre o name
+              if (typeof val === 'object') {
+                const name = val.nombre || val.name || val.facultad_nombre || val.nombre_facultad
+                if (name && typeof name === 'string') {
+                  facSet.add(name.trim())
+                  break
+                }
+              }
+            }
+          })
+
+          const facs = Array.from(facSet).filter(Boolean).sort()
+          setFacultades(facs)
+          if (facs.length === 0) {
+            // helpful dev log if no faculties found (can remove later)
+            console.info('Reportes: no se encontraron propiedades de facultad en salas. Keys inspeccionadas:', facKeys)
+          }
+        } else {
+          setEdificios([])
+          setFacultades([])
+        }
+      } catch (err) {
+        console.warn('No se pudieron cargar edificios:', err)
+        setEdificios([])
+      }
+    }
+
+    cargarEdificios()
+  }, [])
+
   const cerrarReporte = () => {
     setReporteActivo(null)
     setDatos(null)
@@ -250,24 +385,34 @@ export default function Reportes() {
         {reporte.filtros.includes('edificio') && (
           <div className="form-group">
             <label>Edificio (opcional):</label>
-            <input
-              type="text"
-              value={edificio}
-              onChange={(e) => setEdificio(e.target.value)}
-              placeholder="Ej: Central"
-            />
+            <select value={edificio} onChange={(e) => setEdificio(e.target.value)}>
+              <option value="">Todos</option>
+              {edificios.map((ed) => (
+                <option key={ed} value={ed}>{ed}</option>
+              ))}
+            </select>
           </div>
         )}
 
         {reporte.filtros.includes('facultad') && (
           <div className="form-group">
             <label>Facultad (opcional):</label>
-            <input
-              type="text"
-              value={facultad}
-              onChange={(e) => setFacultad(e.target.value)}
-              placeholder="Ej: Ingeniería"
-            />
+            {/* Si hay facultades cargadas, mostrar un select con las opciones; si no, fallback a input libre */}
+            {facultades && facultades.length > 0 ? (
+              <select value={facultad} onChange={(e) => setFacultad(e.target.value)}>
+                <option value="">Todos</option>
+                {facultades.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={facultad}
+                onChange={(e) => setFacultad(e.target.value)}
+                placeholder="Ej: Ingeniería"
+              />
+            )}
           </div>
         )}
 
@@ -277,6 +422,7 @@ export default function Reportes() {
             <select value={rol} onChange={(e) => setRol(e.target.value)}>
               <option value="">Todos</option>
               <option value="alumno">Alumno</option>
+              <option value="postgrado">Postgrado</option>
               <option value="docente">Docente</option>
             </select>
           </div>

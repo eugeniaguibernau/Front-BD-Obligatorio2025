@@ -6,7 +6,7 @@ import reservaService from '../../../services/reservaService'
 import { useAuth } from '../../../hooks/useAuth'
 
 export default function MisReservas() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const [reservas, setReservas] = useState([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(false)
@@ -71,21 +71,60 @@ export default function MisReservas() {
   })
 
   // classify reservas into active / cancelled-or-no-asist / asistidas
-  const isCancelledOrNoAsist = (st) => {
-    if (!st) return false
+  // Use reservation object (not only estado string) so we detect asistida when
+  // the backend set 'finalizada' but participants have asistencia=true.
+  const getEstadoString = (r) => ((r && (r.estado_actual || r.estado)) || '').toString().toLowerCase()
+
+  const isCancelledOrNoAsist = (r) => {
+    if (!r) return false
+    const st = getEstadoString(r)
     return /^cancel/i.test(st) || /sin\s*asist/i.test(st) || /no\s*asist/i.test(st) || /no\s*asistencia/i.test(st)
   }
-  const isAsistida = (st) => {
-    if (!st) return false
-    return /asist/i.test(st) && !isCancelledOrNoAsist(st)
+
+  const isAsistida = (r) => {
+    if (!r) return false
+    const st = getEstadoString(r)
+    // If estado already mentions 'asist', accept it
+    if (/asist/i.test(st) && !isCancelledOrNoAsist(r)) return true
+
+    // If reservation has a top-level asistencia/asistida boolean flag
+    if (r.asistencia === true || r.asistida === true) return true
+
+    // If reservation includes participantes array, check for current user or any present
+    try {
+      if (Array.isArray(r.participantes) && r.participantes.length > 0) {
+        // If any participante is marked present, treat as asistida
+        const anyPresent = r.participantes.some(p => p && (p.asistencia === true || p.asistencia === 1))
+        if (anyPresent) return true
+
+        // If current user is present
+        const ci = user && (user.ci || user.CI || user.identificacion || user.dni || user.documento)
+        if (ci) {
+          const me = r.participantes.find(p => {
+            const pci = p && (p.ci || p.ci_participante || p.cedula || p.identificacion)
+            return pci && String(pci) === String(ci)
+          })
+          if (me && (me.asistencia === true || me.asistencia === 1)) return true
+        }
+      }
+    } catch (e) {
+      // ignore parsing issues
+    }
+
+    // Special-case: backend might set 'finalizada' as estado but include asistencia info
+    if (/final/i.test(st)) {
+      // if any participante has asistencia true, treat as asistida
+      if (Array.isArray(r.participantes) && r.participantes.some(p => p && (p.asistencia === true || p.asistencia === 1))) return true
+    }
+
+    return false
   }
 
   const activeReservas = (filteredReservas || []).filter(r => {
-    const st = (r.estado || '').toString().toLowerCase()
-    return !isCancelledOrNoAsist(st) && !isAsistida(st)
+    return !isCancelledOrNoAsist(r) && !isAsistida(r)
   })
-  const cancelledOrNoAsistReservas = (filteredReservas || []).filter(r => isCancelledOrNoAsist((r.estado || '').toString().toLowerCase()))
-  const asistidasReservas = (filteredReservas || []).filter(r => isAsistida((r.estado || '').toString().toLowerCase()))
+  const cancelledOrNoAsistReservas = (filteredReservas || []).filter(r => isCancelledOrNoAsist(r))
+  const asistidasReservas = (filteredReservas || []).filter(r => isAsistida(r))
 
   const onDelete = async (id) => {
     if (!window.confirm('¿Eliminar definitivamente esta reserva?')) return
@@ -321,7 +360,10 @@ export default function MisReservas() {
                         <td>{editingId === (r.id_reserva || r.id) ? (<input type="date" value={editFecha} onChange={e => setEditFecha(e.target.value)} />) : (r.fecha || '—')}</td>
                         <td>{r.turno && r.turno.hora_inicio ? r.turno.hora_inicio : '—'}</td>
                         <td>{r.turno && r.turno.hora_fin ? r.turno.hora_fin : '—'}</td>
-                        <td>{r.estado || '—'}</td>
+                        {(() => {
+                          const displayEstado = isAsistida(r) ? 'asistida' : (r.estado || r.estado_actual || '—')
+                          return (<td>{displayEstado}</td>)
+                        })()}
                         {isActive && (
                           <td>
                             {editingId === (r.id_reserva || r.id) ? (

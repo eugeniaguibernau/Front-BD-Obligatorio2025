@@ -16,6 +16,10 @@ export default function GestionSanciones() {
   const [showEliminar, setShowEliminar] = useState(false);
   const [showProcesar, setShowProcesar] = useState(false);
   const [sancionAEliminar, setSancionAEliminar] = useState(null);
+  // Edición inline
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editInicio, setEditInicio] = useState('');
+  const [editFin, setEditFin] = useState('');
   
   // Form crear
   const [formCrear, setFormCrear] = useState({
@@ -73,8 +77,6 @@ export default function GestionSanciones() {
     // Helper: formatea una fecha de entrada a YYYY-MM-DD usando UTC
     const formatearFechaParaEnviar = (fecha) => {
       if (!fecha) return null;
-      // Si ya viene como YYYY-MM-DD, tratarla como tal
-      // Construir una fecha UTC para evitar off-by-one por timezone
       const d = new Date(fecha + 'T00:00:00');
       if (isNaN(d.getTime())) return null;
       const y = d.getUTCFullYear();
@@ -229,6 +231,141 @@ export default function GestionSanciones() {
     }
   };
 
+  // Parse a variety of date string formats into YYYY-MM-DD (returns null on failure)
+  const parseToYMD = (input) => {
+    if (!input && input !== 0) return null
+    let s = String(input).trim()
+    // already YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
+    // common DD/MM/YYYY (UI shows this format)
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+      const [d, m, y] = s.split('/')
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+    }
+    // common DD-MM-YYYY
+    if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
+      const [d, m, y] = s.split('-')
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
+    }
+    // try Date parse as fallback
+    const d = new Date(s)
+    if (!isNaN(d.getTime())) {
+      const y = d.getUTCFullYear()
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+      const day = String(d.getUTCDate()).padStart(2, '0')
+      return `${y}-${m}-${day}`
+    }
+    return null
+  }
+
+  // ---------- Edición de sanción (inline) ----------
+  const startEdit = (index, sancion) => {
+    setEditingIndex(index);
+    try {
+      // normalize to YYYY-MM-DD for input[type=date]
+      const toYMD = (f) => {
+        if (!f) return '';
+        const d = new Date(f);
+        if (isNaN(d.getTime())) return '';
+        const yyyy = d.getUTCFullYear();
+        const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(d.getUTCDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+      };
+      setEditInicio(toYMD(sancion.fecha_inicio));
+      setEditFin(toYMD(sancion.fecha_fin));
+    } catch (e) {
+      setEditInicio('');
+      setEditFin('');
+    }
+  }
+
+  const cancelEdit = () => {
+    setEditingIndex(null);
+    setEditInicio('');
+    setEditFin('');
+  }
+
+  const handleSaveEdit = async (sancion, index) => {
+    setError(null);
+    setSuccess(null);
+    // validations: inicio >= today, fin > today, fin > inicio
+    const parseYMD = (s) => s ? new Date(s + 'T00:00:00') : null;
+    const inicioD = parseYMD(editInicio);
+    const finD = parseYMD(editFin);
+    const today = new Date();
+    const todayMid = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
+
+    if (!inicioD || !finD || isNaN(inicioD.getTime()) || isNaN(finD.getTime())) {
+      setError('Fechas inválidas. Use el selector de fecha.');
+      return;
+    }
+
+    if (inicioD.getTime() < todayMid.getTime()) {
+      setError('La fecha de inicio debe ser hoy o posterior');
+      return;
+    }
+
+    if (finD.getTime() <= todayMid.getTime()) {
+      setError('La fecha fin debe ser posterior a hoy');
+      return;
+    }
+
+    if (finD.getTime() <= inicioD.getTime()) {
+      setError('La fecha fin debe ser posterior a la fecha de inicio');
+      return;
+    }
+
+    // format dates for backend (YYYY-MM-DD UTC)
+    const formatForSend = (fecha) => {
+      const d = new Date(fecha + 'T00:00:00');
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(d.getUTCDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    const inicioStr = formatForSend(editInicio);
+    const finStr = formatForSend(editFin);
+
+    try {
+      setLoading(true);
+      // Normalize original sancion dates (they may come in DD/MM/YYYY or similar)
+      const origenInicio = parseToYMD(sancion.fecha_inicio) || parseToYMD(sancion.fechaInicio) || parseToYMD(sancion.fecha) || null
+      const origenFin = parseToYMD(sancion.fecha_fin) || parseToYMD(sancion.fechaFin) || parseToYMD(sancion.fecha) || null
+
+      if (!origenInicio || !origenFin) {
+        setLoading(false)
+        setError('No se pudieron interpretar las fechas originales de la sanción. Actualice la página e intente de nuevo.')
+        return
+      }
+
+      const resultado = await sancionService.actualizarSancion(
+        sancion.ci_participante,
+        origenInicio,
+        origenFin,
+        inicioStr,
+        finStr
+      );
+      setLoading(false);
+      if (resultado.unauthorized) {
+        setError('No autorizado. Por favor, inicie sesión nuevamente.');
+        return;
+      }
+      if (!resultado.ok) {
+        setError(resultado.error || 'Error actualizando sanción');
+        return;
+      }
+      setSuccess('Sanción actualizada correctamente');
+      cancelEdit();
+      cargarSanciones();
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (e) {
+      setLoading(false);
+      setError(e.message || 'Error al actualizar sanción');
+    }
+  }
+
   
 
   return (
@@ -248,7 +385,14 @@ export default function GestionSanciones() {
         </div>
       </div>
 
-      {error && <div className="mensaje-error">{error}</div>}
+      {error && (
+        <div
+          className="mensaje-error"
+          style={{ color: editingIndex !== null ? '#000' : undefined }}
+        >
+          {error}
+        </div>
+      )}
       {success && <div className="mensaje-exito" style={{ whiteSpace: 'pre-line' }}>{success}</div>}
 
       {/* Filtros */}
@@ -303,21 +447,39 @@ export default function GestionSanciones() {
                 </tr>
               ) : (
                 sanciones.map((sancion, index) => (
-                  <tr key={index}>
+                  <tr key={`${sancion.ci_participante}_${sancion.fecha_inicio || index}`}>
                     <td>{sancion.ci_participante}</td>
+                    {editingIndex === index ? (
+                      <>
+                        <td>
+                          <input type="date" value={editInicio} onChange={(e) => setEditInicio(e.target.value)} />
+                        </td>
+                        <td>
+                          <input type="date" value={editFin} onChange={(e) => setEditFin(e.target.value)} />
+                        </td>
+                        <td>
+                          <button className="btn-confirmar" onClick={() => handleSaveEdit(sancion, index)} disabled={loading}>Guardar</button>
+                          <button className="btn-secundario" onClick={cancelEdit} disabled={loading} style={{ marginLeft: '8px' }}>Cancelar</button>
+                        </td>
+                      </>
+                    ) : (
+                      <>
                         <td>{formatearFecha(sancion.fecha_inicio)}</td>
                         <td>{formatearFecha(sancion.fecha_fin)}</td>
                         <td>
-                      <button
-                        className="btn-eliminar"
-                        onClick={() => {
-                          setSancionAEliminar(sancion);
-                          setShowEliminar(true);
-                        }}
-                      >
-                        Eliminar
-                      </button>
-                    </td>
+                          <button className="btn-editar" onClick={() => startEdit(index, sancion)} style={{ marginRight: '8px' }}>Editar</button>
+                          <button
+                            className="btn-eliminar"
+                            onClick={() => {
+                              setSancionAEliminar(sancion);
+                              setShowEliminar(true);
+                            }}
+                          >
+                            Eliminar
+                          </button>
+                        </td>
+                      </>
+                    )}
                   </tr>
                 ))
               )}
