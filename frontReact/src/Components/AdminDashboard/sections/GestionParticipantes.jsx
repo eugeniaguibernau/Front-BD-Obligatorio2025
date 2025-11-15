@@ -27,7 +27,7 @@ export default function GestionParticipantes() {
     apellido: '',
     email: '',
     // Use backend-expected field names
-    tipo_participante: 'estudiante', // opciones: estudiante, docente, postgrado, otro (lowercase)
+    tipo_participante: 'estudiante', // opciones: estudiante, docente, postgrado (lowercase)
     programa_academico: '',
   })
 
@@ -50,8 +50,10 @@ export default function GestionParticipantes() {
   const backendTipoFromUi = (uiTipo) => {
     if (!uiTipo) return ''
     const u = uiTipo.toString().toLowerCase()
-    // Map postgrado and estudiante to backend 'alumno'
-    if (u === 'estudiante' || u === 'postgrado' || u === 'alumno') return 'alumno'
+    // Map UI values to backend canonical values.
+    if (u === 'estudiante') return 'alumno'
+    if (u === 'postgrado') return 'postgrado'
+    if (u === 'alumno') return 'alumno'
     if (u === 'docente') return 'docente'
     // fallback: return original
     return u
@@ -158,7 +160,10 @@ export default function GestionParticipantes() {
     // Normalize tipo_participante to backend expected value (e.g. 'alumno'|'docente')
     const payload = {
       ...formData,
+      // canonical value for backend
       tipo_participante: backendTipoFromUi(formData.tipo_participante),
+      // readable label (e.g. 'Postgrado') — include explicitly so backend can persist/display it
+      tipo: formData.tipo_participante ? formData.tipo_participante.charAt(0).toUpperCase() + formData.tipo_participante.slice(1) : '',
       programa_academico: formData.programa_academico,
     }
 
@@ -180,10 +185,18 @@ export default function GestionParticipantes() {
     if (formData.apellido !== participanteSeleccionado.apellido) cambios.apellido = formData.apellido;
     if (formData.email !== participanteSeleccionado.email) cambios.email = formData.email;
 
-    // Compare backend-normalized tipos: get original backend value, and the new backend value
-    const originalBackendTipo = (participanteSeleccionado.tipo_participante || participanteSeleccionado.tipo || '').toString().toLowerCase()
-    const newBackendTipo = backendTipoFromUi(formData.tipo_participante)
-    if (newBackendTipo && newBackendTipo !== originalBackendTipo) cambios.tipo_participante = newBackendTipo
+    // Compare UI-visible tipos (e.g. 'estudiante'|'postgrado'|'docente') so we
+    // detect when the user changed the select even if multiple UI values map to
+    // the same backend canonical value (e.g. 'postgrado' -> 'alumno').
+    const originalUiTipo = uiTipoFromBackend(participanteSeleccionado.tipo_participante || participanteSeleccionado.tipo || 'estudiante')
+    const newUiTipo = formData.tipo_participante
+    if (newUiTipo && newUiTipo !== originalUiTipo) {
+      // Send canonical value expected by backend
+      cambios.tipo_participante = backendTipoFromUi(newUiTipo)
+      // Also send a readable `tipo` field (capitalized) so backends that accept
+      // it can persist/display the more specific UI label (e.g. 'Postgrado').
+      cambios.tipo = newUiTipo.charAt(0).toUpperCase() + newUiTipo.slice(1)
+    }
 
     const originalPrograma = participanteSeleccionado.programa_academico || participanteSeleccionado.programa || participanteSeleccionado.programa_id || '';
     if (formData.programa_academico !== originalPrograma)
@@ -296,7 +309,7 @@ export default function GestionParticipantes() {
                   <td>{p.nombre}</td>
                   <td>{p.apellido}</td>
                   <td>{p.email}</td>
-                  <td>{p.tipo_participante || p.tipo || 'No especificado'}</td>
+                  <td>{p.tipo || p.tipo_participante || 'No especificado'}</td>
                   <td>{resolveProgramaDisplay(p)}</td>
                   <td>
                     <button
@@ -405,7 +418,6 @@ export default function GestionParticipantes() {
                   <option value="estudiante">Estudiante</option>
                   <option value="docente">Docente</option>
                   <option value="postgrado">Postgrado</option>
-                  <option value="otro">Otro</option>
                 </select>
               </div>
 

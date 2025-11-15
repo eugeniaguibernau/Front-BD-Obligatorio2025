@@ -160,8 +160,16 @@ export const crearParticipante = async (participante) => {
     // Mapear campo 'tipo' del formulario a 'tipo_participante' esperado por el backend
     const payload = { ...participante }
     // Asegurar que siempre enviamos 'tipo_participante' y también 'tipo' por compatibilidad
+    // Prefer values explicitly provided by the caller. Only default when missing.
     payload.tipo_participante = payload.tipo_participante || payload.tipo || 'Estudiante'
-    payload.tipo = payload.tipo || payload.tipo_participante
+    // If caller already provided a readable `tipo`, keep it. Otherwise, derive a
+    // readable `tipo` from the canonical `tipo_participante`.
+    if (!payload.tipo) {
+      // If backend canonical is 'alumno', prefer readable 'Estudiante'
+      payload.tipo = payload.tipo_participante && payload.tipo_participante.toString().toLowerCase() === 'alumno'
+        ? 'Estudiante'
+        : (payload.tipo_participante ? payload.tipo_participante.charAt(0).toUpperCase() + payload.tipo_participante.slice(1) : '');
+    }
     // Incluir programa si el formulario lo envía (soportar variantes de clave)
     payload.programa = participante.programa || participante.programa_id || participante.programa_academico || payload.programa || null
 
@@ -205,13 +213,50 @@ export const actualizarParticipante = async (ci, datos) => {
     const payloadDatos = { ...datos }
     // Asegurar que si se modifica/indica tipo se envíe como 'tipo_participante'
     if (payloadDatos.tipo || payloadDatos.tipo_participante) {
+      // Ensure canonical value exists
       payloadDatos.tipo_participante = payloadDatos.tipo_participante || payloadDatos.tipo || 'Estudiante'
-      payloadDatos.tipo = payloadDatos.tipo || payloadDatos.tipo_participante
+      // Only derive a readable `tipo` if the caller did NOT provide one. Do NOT
+      // overwrite an explicit `tipo` sent by the frontend (e.g. 'Postgrado').
+      if (!payloadDatos.tipo) {
+        // If canonical is 'alumno' use readable 'Estudiante'
+        if (payloadDatos.tipo_participante.toString().toLowerCase() === 'alumno') {
+          payloadDatos.tipo = 'Estudiante'
+        } else {
+          payloadDatos.tipo = payloadDatos.tipo_participante.charAt(0).toUpperCase() + payloadDatos.tipo_participante.slice(1)
+        }
+      }
     }
     // Si se envía programa en los cambios, asegurarnos de usar la clave 'programa'
     if (payloadDatos.programa || payloadDatos.programa_id || payloadDatos.programa_academico) {
       payloadDatos.programa = payloadDatos.programa || payloadDatos.programa_id || payloadDatos.programa_academico
       // no borrar las variantes, backend debería aceptar 'programa'
+    }
+
+    // --- Debugging / normalization helper ---
+    // Log payload so developer can inspect what is being enviado al backend
+    try {
+      console.log(`[participanteService] actualizarParticipante payload for CI ${ci}:`, payloadDatos)
+    } catch (e) {
+      // ignore console errors in non-browser environments
+    }
+
+    // Normalize `tipo` for better compatibility with backends that expect
+    // capitalized values (e.g. 'Estudiante' / 'Docente') while still
+    // keeping `tipo_participante` as the canonical internal key.
+    if (payloadDatos.tipo_participante) {
+      const t = payloadDatos.tipo_participante.toString()
+      // backend sometimes expects 'alumno' while the UI uses 'estudiante'
+      if (t.toLowerCase() === 'alumno') {
+        payloadDatos.tipo = 'Estudiante'
+        payloadDatos.tipo_participante = 'alumno'
+      } else {
+        // Capitalize the UI value for the `tipo` field (e.g. 'docente' -> 'Docente')
+        payloadDatos.tipo = t.charAt(0).toUpperCase() + t.slice(1)
+      }
+    } else if (payloadDatos.tipo) {
+      // ensure tipo is a string and capitalized
+      const tt = payloadDatos.tipo.toString()
+      payloadDatos.tipo = tt.charAt(0).toUpperCase() + tt.slice(1)
     }
 
     const response = await fetch(`${API_BASE_URL}/participantes/${ci}`, {
