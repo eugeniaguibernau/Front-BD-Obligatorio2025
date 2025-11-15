@@ -23,6 +23,24 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
+  // Listen to global logout events (dispatched from authService.logout)
+  useEffect(() => {
+    const onGlobalLogout = () => {
+      // clear local state so the UI shows Login
+      setUser(null)
+      setToken(null)
+      setError(null)
+    }
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('app:logout', onGlobalLogout)
+    }
+    return () => {
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('app:logout', onGlobalLogout)
+      }
+    }
+  }, [])
+
   const login = useCallback(async (correo, contraseña) => {
     try {
       setLoading(true);

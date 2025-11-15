@@ -107,6 +107,14 @@ export const getUserData = () => {
 export const logout = () => {
   localStorage.removeItem('auth_token');
   // Ya no hay user_data para eliminar
+  try {
+    // notify app that logout happened (so Contexts can react)
+    if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+      window.dispatchEvent(new CustomEvent('app:logout'))
+    }
+  } catch (e) {
+    // ignore
+  }
 };
 
 /**
