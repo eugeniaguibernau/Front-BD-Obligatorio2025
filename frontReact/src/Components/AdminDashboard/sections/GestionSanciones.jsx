@@ -6,6 +6,7 @@ export default function GestionSanciones() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [editError, setEditError] = useState(null);
   
   // Filtros
   const [filtroCi, setFiltroCi] = useState('');
@@ -274,6 +275,7 @@ export default function GestionSanciones() {
       };
       setEditInicio(toYMD(sancion.fecha_inicio));
       setEditFin(toYMD(sancion.fecha_fin));
+      setEditError(null);
     } catch (e) {
       setEditInicio('');
       setEditFin('');
@@ -284,6 +286,7 @@ export default function GestionSanciones() {
     setEditingIndex(null);
     setEditInicio('');
     setEditFin('');
+    setEditError(null);
   }
 
   const handleSaveEdit = async (sancion, index) => {
@@ -297,22 +300,26 @@ export default function GestionSanciones() {
     const todayMid = new Date(Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()));
 
     if (!inicioD || !finD || isNaN(inicioD.getTime()) || isNaN(finD.getTime())) {
-      setError('Fechas inválidas. Use el selector de fecha.');
+      setEditError('Fechas inválidas. Use el selector de fecha.');
+      setTimeout(() => setEditError(null), 5000);
       return;
     }
 
     if (inicioD.getTime() < todayMid.getTime()) {
-      setError('La fecha de inicio debe ser hoy o posterior');
+      setEditError('La fecha de inicio debe ser hoy o posterior');
+      setTimeout(() => setEditError(null), 5000);
       return;
     }
 
     if (finD.getTime() <= todayMid.getTime()) {
-      setError('La fecha fin debe ser posterior a hoy');
+      setEditError('La fecha fin debe ser posterior a hoy');
+      setTimeout(() => setEditError(null), 5000);
       return;
     }
 
     if (finD.getTime() <= inicioD.getTime()) {
-      setError('La fecha fin debe ser posterior a la fecha de inicio');
+      setEditError('La fecha fin debe ser posterior a la fecha de inicio');
+      setTimeout(() => setEditError(null), 5000);
       return;
     }
 
@@ -331,33 +338,48 @@ export default function GestionSanciones() {
     try {
       setLoading(true);
       // Normalize original sancion dates (they may come in DD/MM/YYYY or similar)
-      const origenInicio = parseToYMD(sancion.fecha_inicio) || parseToYMD(sancion.fechaInicio) || parseToYMD(sancion.fecha) || null
-      const origenFin = parseToYMD(sancion.fecha_fin) || parseToYMD(sancion.fechaFin) || parseToYMD(sancion.fecha) || null
+      const origenInicio = parseToYMD(sancion.fecha_inicio) || parseToYMD(sancion.fechaInicio) || parseToYMD(sancion.fecha) || null;
+      const origenFin = parseToYMD(sancion.fecha_fin) || parseToYMD(sancion.fechaFin) || parseToYMD(sancion.fecha) || null;
 
       if (!origenInicio || !origenFin) {
-        setLoading(false)
-        setError('No se pudieron interpretar las fechas originales de la sanción. Actualice la página e intente de nuevo.')
-        return
+        setLoading(false);
+        setEditError('No se pudieron interpretar las fechas originales de la sanción. Actualice la página e intente de nuevo.');
+        setTimeout(() => setEditError(null), 5000);
+        return;
       }
 
-      const resultado = await sancionService.actualizarSancion(
-        sancion.ci_participante,
-        origenInicio,
-        origenFin,
-        inicioStr,
-        finStr
-      );
+      // Preferir actualizar por identificador si la sanción lo expone
+      const posibleId = sancion.id || sancion.id_sancion || sancion._id || sancion.idSancion || null;
+      let resultado;
+
+      if (posibleId) {
+        console.log('🔁 Actualizando sanción por ID:', posibleId, '->', inicioStr, finStr);
+        resultado = await sancionService.actualizarSancionPorId(posibleId, inicioStr, finStr);
+      } else {
+        console.log('🔁 Actualizando sanción por claves (fallback delete+create):', sancion.ci_participante, origenInicio, origenFin, '->', inicioStr, finStr);
+        resultado = await sancionService.actualizarSancion(
+          sancion.ci_participante,
+          origenInicio,
+          origenFin,
+          inicioStr,
+          finStr
+        );
+      }
+
       setLoading(false);
       if (resultado.unauthorized) {
         setError('No autorizado. Por favor, inicie sesión nuevamente.');
         return;
       }
       if (!resultado.ok) {
-        setError(resultado.error || 'Error actualizando sanción');
+        // Mostrar error inline cuando la edición falla
+        setEditError(resultado.error || 'Error actualizando sanción');
+        setTimeout(() => setEditError(null), 5000);
         return;
       }
       setSuccess('Sanción actualizada correctamente');
       cancelEdit();
+      setEditError(null);
       cargarSanciones();
       setTimeout(() => setSuccess(null), 3000);
     } catch (e) {
@@ -447,7 +469,9 @@ export default function GestionSanciones() {
                 </tr>
               ) : (
                 sanciones.map((sancion, index) => (
-                  <tr key={`${sancion.ci_participante}_${sancion.fecha_inicio || index}`}>
+                  // Ensure the key is unique even if multiple sanciones share the same CI and date strings.
+                  // Prefer a stable id when backend provides one; otherwise combine ci + normalized fechas + index.
+                  <tr key={`${sancion.ci_participante}_${parseToYMD(sancion.fecha_inicio) || index}_${parseToYMD(sancion.fecha_fin) || ''}_${index}`}>
                     <td>{sancion.ci_participante}</td>
                     {editingIndex === index ? (
                       <>
@@ -460,6 +484,9 @@ export default function GestionSanciones() {
                         <td>
                           <button className="btn-confirmar" onClick={() => handleSaveEdit(sancion, index)} disabled={loading}>Guardar</button>
                           <button className="btn-secundario" onClick={cancelEdit} disabled={loading} style={{ marginLeft: '8px' }}>Cancelar</button>
+                          {editError && (
+                            <div className="mensaje-error" style={{ marginTop: '8px' }}>{editError}</div>
+                          )}
                         </td>
                       </>
                     ) : (

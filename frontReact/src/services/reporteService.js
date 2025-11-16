@@ -74,6 +74,7 @@ async function getTurnosMasDemandados(startDate, endDate, limit = 5) {
     });
 
     if (response.status === 401) {
+      try { logout() } catch (e) { /* ignore */ }
       return { ok: false, unauthorized: true };
     }
 
@@ -102,6 +103,7 @@ async function getPromedioParticipantesPorSala(startDate, endDate, edificio = nu
     });
 
     if (response.status === 401) {
+      try { logout() } catch (e) { /* ignore */ }
       return { ok: false, unauthorized: true };
     }
 
@@ -130,6 +132,7 @@ async function getReservasPorPrograma(startDate, endDate, facultad = null) {
     });
 
     if (response.status === 401) {
+      try { logout() } catch (e) { /* ignore */ }
       return { ok: false, unauthorized: true };
     }
 
@@ -158,6 +161,7 @@ async function getOcupacionPorEdificio(startDate, endDate) {
     });
 
     if (response.status === 401) {
+      try { logout() } catch (e) { /* ignore */ }
       return { ok: false, unauthorized: true };
     }
 
@@ -186,6 +190,7 @@ async function getReservasYAsistenciaPorRol(startDate, endDate, rol = null) {
     });
 
     if (response.status === 401) {
+      try { logout() } catch (e) { /* ignore */ }
       return { ok: false, unauthorized: true };
     }
 

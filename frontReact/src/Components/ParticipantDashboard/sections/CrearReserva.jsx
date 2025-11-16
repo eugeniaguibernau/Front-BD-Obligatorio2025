@@ -4,10 +4,12 @@
 import { useState, useEffect } from 'react'
 import reservaService from '../../../services/reservaService'
 import sancionService from '../../../services/sancionService'
+import { listarParticipantes } from '../../../services/participanteService'
 import { useAuth } from '../../../hooks/useAuth'
 
 export default function CrearReserva({ tienesSanciones }) {
   const { user } = useAuth()
+  const [userCI, setUserCI] = useState(null)
   const [salas, setSalas] = useState([])
   // keep selected sala as index to access both nombre and edificio
   const [selectedSalaIndex, setSelectedSalaIndex] = useState('')
@@ -21,6 +23,40 @@ export default function CrearReserva({ tienesSanciones }) {
   const [invalidParticipants, setInvalidParticipants] = useState([])
   const [bloqueadoPorSancion, setBloqueadoPorSancion] = useState(false)
   const [detalleSancion, setDetalleSancion] = useState(null)
+
+  // Cargar la CI del participante usando su email
+  useEffect(() => {
+    const loadUserCI = async () => {
+      try {
+        const email = user?.correo || user?.email
+        if (!email) {
+          console.log('[CrearReserva] No se encontró email del usuario')
+          return
+        }
+        
+        console.log('[CrearReserva] Buscando participante con email:', email)
+        const res = await listarParticipantes()
+        
+        if (res.ok && res.data) {
+          const participante = res.data.find(p => {
+            const pEmail = p.email || p.correo
+            return pEmail && pEmail.toLowerCase() === email.toLowerCase()
+          })
+          
+          if (participante && participante.ci) {
+            console.log('[CrearReserva] CI encontrada:', participante.ci)
+            setUserCI(participante.ci)
+          } else {
+            console.log('[CrearReserva] No se encontró participante con ese email')
+          }
+        }
+      } catch (error) {
+        console.error('[CrearReserva] Error cargando CI del usuario:', error)
+      }
+    }
+    
+    loadUserCI()
+  }, [user])
 
   useEffect(() => {
     const loadSalas = async () => {
@@ -149,6 +185,40 @@ export default function CrearReserva({ tienesSanciones }) {
       .map(s => s.trim())
       .filter(Boolean)
       .map(s => (isNaN(Number(s)) ? s : Number(s)))
+
+    console.log('[CrearReserva] Validando participantes:', participantes)
+
+    // 🔒 VALIDACIÓN 1: Debe haber al menos un participante
+    if (participantes.length === 0) {
+      setError('Debes agregar al menos un participante (tu cédula)')
+      setLoading(false)
+      return
+    }
+
+    // 🔒 VALIDACIÓN 2: El usuario DEBE incluirse a sí mismo en la lista de participantes
+    console.log('[CrearReserva] CI del usuario logueado (userCI):', userCI)
+    console.log('[CrearReserva] Usuario completo:', user)
+    
+    if (!userCI) {
+      setError('Debes incluir tu cédula de identidad en la lista de participantes')
+      setLoading(false)
+      return
+    }
+
+    const userCINumber = Number(userCI)
+    const incluidoEnLista = participantes.some(p => {
+      const pNum = Number(p)
+      console.log('[CrearReserva] Comparando:', pNum, '===', userCINumber, '?', !isNaN(pNum) && pNum === userCINumber)
+      return !isNaN(pNum) && pNum === userCINumber
+    })
+    
+    console.log('[CrearReserva] Usuario incluido en lista:', incluidoEnLista)
+    
+    if (!incluidoEnLista) {
+      setError(`❌ Debes incluir tu propia cédula (${userCI}) en la lista de participantes. No puedes crear reservas únicamente para otros.`)
+      setLoading(false)
+      return
+    }
 
     // Validar que haya al menos un turno seleccionado
     if (selectedTurnosIds.length === 0) {
@@ -312,14 +382,25 @@ export default function CrearReserva({ tienesSanciones }) {
           ) : (
             <select id="sala" className="form-input" value={selectedSalaIndex} onChange={e => setSelectedSalaIndex(e.target.value)}>
               <option value="">-- Seleccione una sala --</option>
-              {salas.map((s, i) => (
-                <option
-                  key={s.nombre_sala ?? s.id ?? s._id ?? `${s.nombre ?? 'sala'}_${s.edificio ?? ''}_${i}`}
-                  value={String(i)}
-                >
-                  {((s.nombre_sala || s.nombre) ? `${(s.nombre_sala || s.nombre)} (${s.edificio || s.nombre_edificio || s.edificio || ''})` : (s.id || s._id || `Sala ${i + 1}`))}
-                </option>
-              ))}
+              {salas.map((s, i) => {
+                // Generar key única combinando múltiples identificadores + índice
+                const keyParts = [
+                  s.id_sala || s.id || s._id,
+                  s.nombre_sala || s.nombre,
+                  s.edificio || s.nombre_edificio,
+                  i
+                ].filter(Boolean)
+                const uniqueKey = keyParts.join('_')
+                
+                return (
+                  <option
+                    key={uniqueKey}
+                    value={String(i)}
+                  >
+                    {((s.nombre_sala || s.nombre) ? `${(s.nombre_sala || s.nombre)} (${s.edificio || s.nombre_edificio || s.edificio || ''})` : (s.id || s._id || `Sala ${i + 1}`))}
+                  </option>
+                )
+              })}
             </select>
           )}
         </div>
@@ -383,8 +464,23 @@ export default function CrearReserva({ tienesSanciones }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="participantes">Participantes (CI separados por coma)</label>
-          <textarea id="participantes" className="form-input" rows={3} value={participantesText} onChange={e => setParticipantesText(e.target.value)} placeholder="12345678, 87654321" />
+          <label htmlFor="participantes">
+            Participantes (CI separados por coma) *
+          </label>
+          <textarea 
+            id="participantes" 
+            className="form-input" 
+            rows={3} 
+            value={participantesText} 
+            onChange={e => setParticipantesText(e.target.value)} 
+            placeholder={userCI ? `${userCI}, 12345678, 87654321` : 'Tu CI, 12345678, 87654321'}
+            required
+          />
+          <small style={{ color: '#d32f2f', fontSize: '0.9em', marginTop: '6px', display: 'block', fontWeight: '500' }}>
+            ⚠️ <strong>OBLIGATORIO:</strong> Debes incluir tu propia cédula ({userCI ? <strong>{userCI}</strong> : 'cargando...'}) en la lista.
+            <br />
+            No puedes crear reservas únicamente para otras personas.
+          </small>
         </div>
 
         <button type="submit" className="btn-primary" disabled={loading}>

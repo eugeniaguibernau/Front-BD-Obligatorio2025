@@ -150,6 +150,7 @@ async function eliminarSancion(ci_participante, fecha_inicio, fecha_fin) {
     console.log('📡 Respuesta del servidor:', response.status, response.statusText);
 
     if (response.status === 401) {
+      try { logout() } catch (e) { /* ignore */ }
       return { ok: false, unauthorized: true };
     }
 
@@ -208,6 +209,54 @@ async function actualizarSancion(ci_participante, fecha_inicio_actual, fecha_fin
 }
 
 /**
+ * Actualizar sanción por ID usando el endpoint PUT /sanciones/{id}
+ * Si el backend expone un identificador por sanción (id, id_sancion, _id),
+ * es preferible usar este método. Mantenerlo separado para compatibilidad.
+ * @param {string|number} idSancion
+ * @param {string} fecha_inicio_nueva - YYYY-MM-DD
+ * @param {string} fecha_fin_nueva - YYYY-MM-DD
+ */
+async function actualizarSancionPorId(idSancion, fecha_inicio_nueva, fecha_fin_nueva) {
+  try {
+    const payload = {
+      fecha_inicio: fecha_inicio_nueva,
+      fecha_fin: fecha_fin_nueva
+    };
+
+    const response = await fetch(`${API_URL}/sanciones/${encodeURIComponent(idSancion)}`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify(payload)
+    });
+
+    if (response.status === 401) {
+      try { logout() } catch (e) { /* ignore */ }
+      return { ok: false, unauthorized: true };
+    }
+
+    if (response.status === 400) {
+      const err = await response.json().catch(() => ({}));
+      return { ok: false, error: err.error || 'Datos inválidos para actualizar sanción' };
+    }
+
+    if (response.status === 404) {
+      return { ok: false, error: 'Sanción no encontrada' };
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { ok: false, error: errorData.error || 'Error al actualizar sanción' };
+    }
+
+    const data = await response.json();
+    return { ok: true, data: data };
+  } catch (error) {
+    console.error('Error en actualizarSancionPorId:', error);
+    return { ok: false, error: 'Error de conexión' };
+  }
+}
+
+/**
  * Aplicar sanciones por reserva (si nadie asistió)
  * @param {number} idReserva - ID de la reserva
  * @param {number} sancionDias - Días de sanción (default: 60)
@@ -221,6 +270,7 @@ async function aplicarSancionesPorReserva(idReserva, sancionDias = 60) {
     });
 
     if (response.status === 401) {
+      try { logout() } catch (e) { /* ignore */ }
       return { ok: false, unauthorized: true };
     }
 
@@ -304,6 +354,7 @@ const sancionService = {
   crearSancion,
   eliminarSancion,
   actualizarSancion,
+  actualizarSancionPorId,
   aplicarSancionesPorReserva,
   procesarReservasVencidas,
   extenderSanciones

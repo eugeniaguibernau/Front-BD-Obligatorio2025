@@ -49,6 +49,10 @@ export const listarParticipantes = async (limit = null, offset = null) => {
 
     const data = await response.json();
 
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
+
     if (!response.ok) {
       return {
         ok: false,
@@ -60,6 +64,53 @@ export const listarParticipantes = async (limit = null, offset = null) => {
       ok: true,
       data: data.participantes || [],
       count: data.count || 0,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error.message || 'Error de conexión',
+    };
+  }
+};
+
+/**
+ * Registrar un nuevo usuario desde el panel de admin (crea credenciales + participante)
+ * Llama al endpoint POST /api/auth/register y ENVÍA el header Authorization con el
+ * token del admin (se obtiene desde localStorage a través de getAuthHeaders()).
+ * @param {{correo: string, password: string, participante: object}} data
+ * @returns {Promise<{ok: boolean, data?: object, error?: string}>}
+ */
+export const registrarUsuarioAdmin = async ({ correo, password, participante }) => {
+  try {
+    const payload = {
+      correo,
+      contraseña: password,
+      participante: participante || {},
+    };
+
+    const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: data.error || data.mensaje || data.message || 'Error al registrar usuario',
+      };
+    }
+
+    return {
+      ok: true,
+      data,
     };
   } catch (error) {
     return {
@@ -99,6 +150,10 @@ export const listarProgramas = async () => {
 
     const data = await response.json();
 
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
+
     if (!response.ok) {
       return { ok: false, error: data.error || 'Error al listar programas' };
     }
@@ -130,6 +185,10 @@ export const obtenerParticipante = async (ci, detailed = false) => {
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
 
     if (!response.ok) {
       return {
@@ -181,6 +240,10 @@ export const crearParticipante = async (participante) => {
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
 
     if (!response.ok) {
       return {
@@ -268,6 +331,10 @@ export const actualizarParticipante = async (ci, datos) => {
 
     const data = await response.json();
 
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
+
     if (!response.ok) {
       return {
         ok: false,
@@ -290,17 +357,30 @@ export const actualizarParticipante = async (ci, datos) => {
 /**
  * Elimina un participante
  * @param {number} ci - CI del participante
+/**
+ * Eliminar participante
+ * @param {string|number} ci - CI del participante
+ * @param {boolean} force - Si es true, hace borrado forzado en cascada (elimina reservas, sanciones, programas, login, etc.)
  * @returns {Promise<{ok: boolean, data?: object, error?: string}>}
  */
-export const eliminarParticipante = async (ci) => {
+export const eliminarParticipante = async (ci, force = false) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/participantes/${ci}`, {
+    // Construir URL con query parameter force si es necesario
+    const url = force 
+      ? `${API_BASE_URL}/participantes/${ci}?force=true`
+      : `${API_BASE_URL}/participantes/${ci}`;
+    
+    const response = await fetch(url, {
       method: 'DELETE',
       headers: getAuthHeaders(),
       credentials: 'include',
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
 
     if (!response.ok) {
       return {
@@ -335,6 +415,10 @@ export const obtenerSanciones = async (ci) => {
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
 
     if (!response.ok) {
       return {
@@ -400,3 +484,47 @@ export const buscarParticipantes = async (termino) => {
     };
   }
 };
+
+/**
+ * Agregar un programa adicional a un participante existente
+ * @param {string|number} ci - CI del participante
+ * @param {string} programa - Nombre del programa académico
+ * @param {string} tipo - Tipo de participante (Estudiante, Docente, etc.)
+ * @returns {Promise<{ok: boolean, data?: object, error?: string}>}
+ */
+export const agregarProgramaAParticipante = async (ci, programa, tipo) => {
+  try {
+    const payload = { programa, tipo };
+    
+    const response = await fetch(`${API_BASE_URL}/participantes/${ci}/programas`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+
+    const data = await response.json();
+
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' };
+    }
+
+    if (!response.ok) {
+      return {
+        ok: false,
+        error: data.error || data.mensaje || 'Error al agregar programa',
+      };
+    }
+
+    return {
+      ok: true,
+      data,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error.message || 'Error de conexión',
+    };
+  }
+};
+

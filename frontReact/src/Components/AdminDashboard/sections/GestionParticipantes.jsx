@@ -10,6 +10,8 @@ import {
   eliminarParticipante,
   buscarParticipantes,
   listarProgramas,
+  registrarUsuarioAdmin,
+  agregarProgramaAParticipante,
 } from '../../../services/participanteService'
 
 export default function GestionParticipantes() {
@@ -29,7 +31,13 @@ export default function GestionParticipantes() {
     // Use backend-expected field names
     tipo_participante: 'estudiante', // opciones: estudiante, docente, postgrado (lowercase)
     programa_academico: '',
+    // Auth field (opcional): contraseña para crear credenciales (email se reutiliza)
+    contraseña: '',
   })
+  
+  // Estado para manejar múltiples programas en modo crear
+  const [programasAsignados, setProgramasAsignados] = useState([])
+  const [programaTemporal, setProgramaTemporal] = useState({ programa: '', tipo: 'estudiante' })
 
   // Cargar participantes al montar el componente
   useEffect(() => {
@@ -72,18 +80,101 @@ export default function GestionParticipantes() {
     }
   }
 
+  // Helper: extrae el primer programa del array `programas` (nuevo formato backend)
+  // o usa campos legacy `programa`/`programa_academico` si `programas` no existe
+  const getProgramaPrimario = (p) => {
+    if (!p) return null
+    // Nuevo formato: programas array
+    if (p.programas && Array.isArray(p.programas) && p.programas.length > 0) {
+      return p.programas[0].programa || null
+    }
+    // Legacy fallback
+    return p.programa || p.programa_academico || p.programa_id || null
+  }
+
+  const getTipoPrimario = (p) => {
+    if (!p) return null
+    // Nuevo formato: programas array
+    if (p.programas && Array.isArray(p.programas) && p.programas.length > 0) {
+      return p.programas[0].tipo || null
+    }
+    // Legacy fallback
+    return p.tipo_participante || p.tipo || null
+  }
+
+  // Helper: obtiene TODOS los tipos de un participante (para mostrar en tabla)
+  const getTodosLosTipos = (p) => {
+    if (!p) return 'No especificado';
+    
+    // Nuevo formato: programas array con múltiples programas/tipos
+    if (p.programas && Array.isArray(p.programas) && p.programas.length > 0) {
+      const tipos = p.programas.map(prog => prog.tipo).filter(Boolean);
+      return tipos.length > 0 ? tipos.join(', ') : 'No especificado';
+    }
+    
+    // Legacy fallback: un solo tipo
+    const tipoUnico = p.tipo_participante || p.tipo;
+    return tipoUnico || 'No especificado';
+  }
+
+  // Helper: obtiene TODOS los programas de un participante (para mostrar en tabla)
+  const getTodosLosProgramas = (p) => {
+    if (!p) return 'No especificado';
+    
+    // Nuevo formato: programas array con múltiples programas
+    if (p.programas && Array.isArray(p.programas) && p.programas.length > 0) {
+      const progs = p.programas.map(prog => prog.programa).filter(Boolean);
+      return progs.length > 0 ? progs.join(', ') : 'No especificado';
+    }
+    
+    // Legacy fallback: un solo programa
+    const programaUnico = p.programa || p.programa_academico || p.programa_id;
+    return programaUnico || 'No especificado';
+  }
+
+  // Helper: renderiza todos los pares programa-tipo de forma visual
+  const renderProgramasYTipos = (p) => {
+    if (!p) return <span>No especificado</span>;
+    
+    // Nuevo formato: programas array con múltiples programas/tipos
+    if (p.programas && Array.isArray(p.programas) && p.programas.length > 0) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          {p.programas.map((prog, idx) => (
+            <div key={idx} style={{ fontSize: '0.9em' }}>
+              <strong>{prog.programa}</strong> <em style={{ color: '#666' }}>({prog.tipo})</em>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    
+    // Legacy fallback: un solo programa/tipo
+    const programaUnico = p.programa || p.programa_academico || p.programa_id || 'No especificado';
+    const tipoUnico = p.tipo_participante || p.tipo || 'No especificado';
+    return (
+      <div>
+        <strong>{programaUnico}</strong> <em style={{ color: '#666' }}>({tipoUnico})</em>
+      </div>
+    );
+  }
+
   const resolveProgramaDisplay = (p) => {
     // Si el participante trae un objeto programa con nombre
     if (!p) return '-'
-    if (p.programa && (p.programa.nombre || p.programa.name)) return p.programa.nombre || p.programa.name
+    const programaPrimario = getProgramaPrimario(p)
+    if (!programaPrimario) return 'No especificado'
+    
+    // Si ya es un objeto con nombre
+    if (programaPrimario.nombre || programaPrimario.name) return programaPrimario.nombre || programaPrimario.name
+    
     // Buscar en la lista cargada de programas por id/codigo
-    const clave = p.programa || p.programa_academico || p.programa_id || null
-    if (clave && programas && programas.length > 0) {
-      const found = programas.find(pr => String(pr.id) === String(clave) || String(pr._id) === String(clave) || String(pr.codigo) === String(clave) || String(pr.nombre) === String(clave) || String(pr.name) === String(clave))
-      if (found) return found.nombre || found.name || String(clave)
+    if (programas && programas.length > 0) {
+      const found = programas.find(pr => String(pr.id) === String(programaPrimario) || String(pr._id) === String(programaPrimario) || String(pr.codigo) === String(programaPrimario) || String(pr.nombre) === String(programaPrimario) || String(pr.name) === String(programaPrimario))
+      if (found) return found.nombre || found.name || String(programaPrimario)
     }
-    // Fallback a mostrar la clave o 'No especificado'
-    return p.programa || p.programa_academico || p.programa_id || 'No especificado'
+    // Fallback a mostrar la clave
+    return String(programaPrimario) || 'No especificado'
   }
 
   const cargarParticipantes = async () => {
@@ -91,7 +182,10 @@ export default function GestionParticipantes() {
     setError('')
     const resultado = await listarParticipantes()
     
+    console.log('[GestionParticipantes] cargarParticipantes resultado:', resultado)
+    
     if (resultado.ok) {
+      console.log('[GestionParticipantes] Total participantes cargados:', resultado.data?.length)
       setParticipantes(resultado.data)
     } else {
       setError(resultado.error)
@@ -120,7 +214,9 @@ export default function GestionParticipantes() {
 
   const abrirModalCrear = () => {
     setModoModal('crear')
-    setFormData({ ci: '', nombre: '', apellido: '', email: '', tipo_participante: 'estudiante', programa_academico: '' })
+    setFormData({ ci: '', nombre: '', apellido: '', email: '', tipo_participante: 'estudiante', programa_academico: '', contraseña: '' })
+    setProgramasAsignados([])
+    setProgramaTemporal({ programa: '', tipo: 'estudiante' })
     setParticipanteSeleccionado(null)
     setMostrarModal(true)
   }
@@ -134,8 +230,10 @@ export default function GestionParticipantes() {
       email: participante.email,
       // soportar diferentes nombres de campo provenientes del backend
       // normalize incoming backend tipo into the UI-friendly value
-      tipo_participante: uiTipoFromBackend(participante.tipo_participante || participante.tipo || 'estudiante'),
-      programa_academico: participante.programa_academico || participante.programa || participante.programa_academico || participante.programa_id || '',
+      tipo_participante: uiTipoFromBackend(getTipoPrimario(participante) || 'estudiante'),
+      programa_academico: getProgramaPrimario(participante) || '',
+      // Do not populate contraseña when editing for security; email shown for reference
+      contraseña: '',
     })
     setParticipanteSeleccionado(participante)
     setMostrarModal(true)
@@ -143,10 +241,36 @@ export default function GestionParticipantes() {
 
   const cerrarModal = () => {
     setMostrarModal(false)
-    setFormData({ ci: '', nombre: '', apellido: '', email: '', tipo_participante: 'estudiante', programa_academico: '' })
+    setFormData({ ci: '', nombre: '', apellido: '', email: '', tipo_participante: 'estudiante', programa_academico: '', contraseña: '' })
+    setProgramasAsignados([])
+    setProgramaTemporal({ programa: '', tipo: 'estudiante' })
     setParticipanteSeleccionado(null)
     setError('')
   }
+
+  const agregarProgramaALista = () => {
+    if (!programaTemporal.programa) {
+      alert('Debes seleccionar un programa');
+      return;
+    }
+    
+    // Verificar que no esté duplicado (mismo programa + tipo)
+    const duplicado = programasAsignados.find(
+      p => p.programa === programaTemporal.programa && p.tipo === programaTemporal.tipo
+    );
+    
+    if (duplicado) {
+      alert('Este programa con este tipo ya está asignado');
+      return;
+    }
+    
+    setProgramasAsignados([...programasAsignados, { ...programaTemporal }]);
+    setProgramaTemporal({ programa: '', tipo: 'estudiante' });
+  };
+
+  const eliminarProgramaDeLista = (index) => {
+    setProgramasAsignados(programasAsignados.filter((_, i) => i !== index));
+  };
 
   const handleSubmit = async (e) => {
   e.preventDefault();
@@ -154,27 +278,83 @@ export default function GestionParticipantes() {
 
   if (modoModal === 'crear') {
 
-    // ⭐⭐⭐ AQUI — JUSTO ANTES DE LLAMAR AL BACKEND ⭐⭐⭐
-    console.log("ENVIANDO PARTICIPANTE (crear)", formData);
-
-    // Normalize tipo_participante to backend expected value (e.g. 'alumno'|'docente')
-    const payload = {
-      ...formData,
-      // canonical value for backend
-      tipo_participante: backendTipoFromUi(formData.tipo_participante),
-      // readable label (e.g. 'Postgrado') — include explicitly so backend can persist/display it
-      tipo: formData.tipo_participante ? formData.tipo_participante.charAt(0).toUpperCase() + formData.tipo_participante.slice(1) : '',
-      programa_academico: formData.programa_academico,
+    // Validar que tenga al menos un programa asignado
+    if (programasAsignados.length === 0) {
+      setError('Debes agregar al menos un programa');
+      return;
     }
 
-    const resultado = await crearParticipante(payload);
+    console.log("ENVIANDO PARTICIPANTE (crear) - formData crudo:", formData);
+    console.log("ENVIANDO PARTICIPANTE (crear) - programas asignados:", programasAsignados);
+
+    // Paso 1: Crear participante con el primer programa
+    const primerPrograma = programasAsignados[0];
+    const payload = {
+      ci: formData.ci,
+      nombre: formData.nombre,
+      apellido: formData.apellido,
+      email: formData.email,
+      programa_academico: primerPrograma.programa,
+      tipo_participante: primerPrograma.tipo.charAt(0).toUpperCase() + primerPrograma.tipo.slice(1),
+    };
     
-    if (resultado.ok) {
-      alert('Participante creado exitosamente');
+    console.log("ENVIANDO PARTICIPANTE (crear) - payload primer programa:", payload);
+
+    try {
+      // Si tiene contraseña, usar el endpoint de registro combinado
+      if (formData.contraseña) {
+        const correo = formData.email;
+        const password = formData.contraseña;
+
+        const resReg = await registrarUsuarioAdmin({ correo, password, participante: payload });
+        console.log('[GestionParticipantes] registrarUsuarioAdmin resultado:', resReg);
+        
+        if (!resReg.ok) {
+          setError(resReg.error || 'Error al registrar usuario');
+          return;
+        }
+      } else {
+        const resultado = await crearParticipante(payload);
+        console.log('[GestionParticipantes] crearParticipante resultado:', resultado);
+        
+        if (!resultado.ok) {
+          setError(resultado.error);
+          return;
+        }
+      }
+
+      // Paso 2: Agregar programas adicionales si hay más de uno
+      if (programasAsignados.length > 1) {
+        console.log(`[GestionParticipantes] Agregando ${programasAsignados.length - 1} programas adicionales...`);
+        
+        for (let i = 1; i < programasAsignados.length; i++) {
+          const programaAdicional = programasAsignados[i];
+          const tipoCapitalizado = programaAdicional.tipo.charAt(0).toUpperCase() + programaAdicional.tipo.slice(1);
+          
+          console.log(`[GestionParticipantes] Agregando programa ${i}: ${programaAdicional.programa} (${tipoCapitalizado})`);
+          
+          const resAgregar = await agregarProgramaAParticipante(
+            formData.ci,
+            programaAdicional.programa,
+            tipoCapitalizado
+          );
+          
+          console.log(`[GestionParticipantes] agregarProgramaAParticipante resultado ${i}:`, resAgregar);
+          
+          if (!resAgregar.ok) {
+            setError(`Error al agregar programa ${programaAdicional.programa}: ${resAgregar.error}`);
+            // No retornar aquí, mostrar el participante creado aunque falló un programa
+          }
+        }
+      }
+
+      alert(`Participante creado exitosamente con ${programasAsignados.length} programa(s)`);
       cerrarModal();
-      cargarParticipantes();
-    } else {
-      setError(resultado.error);
+      await cargarParticipantes();
+      
+    } catch (error) {
+      console.error('[GestionParticipantes] Error en handleSubmit crear:', error);
+      setError(error.message || 'Error inesperado al crear participante');
     }
 
   } else {
@@ -188,17 +368,18 @@ export default function GestionParticipantes() {
     // Compare UI-visible tipos (e.g. 'estudiante'|'postgrado'|'docente') so we
     // detect when the user changed the select even if multiple UI values map to
     // the same backend canonical value (e.g. 'postgrado' -> 'alumno').
-    const originalUiTipo = uiTipoFromBackend(participanteSeleccionado.tipo_participante || participanteSeleccionado.tipo || 'estudiante')
+    const originalUiTipo = uiTipoFromBackend(getTipoPrimario(participanteSeleccionado) || 'estudiante')
     const newUiTipo = formData.tipo_participante
     if (newUiTipo && newUiTipo !== originalUiTipo) {
-      // Send canonical value expected by backend
-      cambios.tipo_participante = backendTipoFromUi(newUiTipo)
-      // Also send a readable `tipo` field (capitalized) so backends that accept
-      // it can persist/display the more specific UI label (e.g. 'Postgrado').
+      // Send UI-friendly label for tipo_participante (e.g. 'Estudiante') to
+      // match backend expectation.
+      cambios.tipo_participante = newUiTipo.charAt(0).toUpperCase() + newUiTipo.slice(1)
+      // Also send a readable `tipo` field (duplicate) for backends that
+      // prefer that key.
       cambios.tipo = newUiTipo.charAt(0).toUpperCase() + newUiTipo.slice(1)
     }
 
-    const originalPrograma = participanteSeleccionado.programa_academico || participanteSeleccionado.programa || participanteSeleccionado.programa_id || '';
+    const originalPrograma = getProgramaPrimario(participanteSeleccionado) || '';
     if (formData.programa_academico !== originalPrograma)
       cambios.programa_academico = formData.programa_academico;
 
@@ -224,10 +405,10 @@ export default function GestionParticipantes() {
 
   const handleEliminar = async (ci, nombre) => {
     // kept for compatibility if called programmatically
-    const ok = window.confirm ? window.confirm(`¿Estás seguro de eliminar a ${nombre}?`) : true
+    const ok = window.confirm ? window.confirm(`¿Estás seguro de eliminar a ${nombre}? Esto eliminará TODOS sus datos (reservas, sanciones, login, etc.)`) : true
     if (!ok) return
 
-    const resultado = await eliminarParticipante(ci)
+    const resultado = await eliminarParticipante(ci, true) // force=true para borrado en cascada
 
     if (resultado.ok) {
       alert('Participante eliminado exitosamente')
@@ -248,7 +429,7 @@ export default function GestionParticipantes() {
 
   const deleteConfirmed = async (ci, nombre) => {
     hideConfirm()
-    const resultado = await eliminarParticipante(ci)
+    const resultado = await eliminarParticipante(ci, true) // force=true para borrado en cascada
     if (resultado.ok) {
       // usar banner en UI sería mejor, por ahora alert va bien
       alert('Participante eliminado exitosamente')
@@ -290,15 +471,14 @@ export default function GestionParticipantes() {
               <th>Nombre</th>
               <th>Apellido</th>
               <th>Email</th>
-              <th>Tipo</th>
-              <th>Programa</th>
+              <th>Programas y Tipos</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {participantes.length === 0 ? (
               <tr>
-                <td colSpan="7" className="sin-datos">
+                <td colSpan="6" className="sin-datos">
                   {busqueda ? 'No se encontraron participantes' : 'No hay participantes'}
                 </td>
               </tr>
@@ -309,8 +489,7 @@ export default function GestionParticipantes() {
                   <td>{p.nombre}</td>
                   <td>{p.apellido}</td>
                   <td>{p.email}</td>
-                  <td>{p.tipo || p.tipo_participante || 'No especificado'}</td>
-                  <td>{resolveProgramaDisplay(p)}</td>
+                  <td>{renderProgramasYTipos(p)}</td>
                   <td>
                     <button
                       className="btn-action btn-editar"
@@ -327,7 +506,7 @@ export default function GestionParticipantes() {
                       className="btn-action btn-eliminar"
                         onClick={() => showConfirm({
                           title: 'Eliminar participante',
-                          message: `¿Estás seguro de eliminar a ${p.nombre} ${p.apellido}?`,
+                          message: `¿Estás seguro de eliminar a ${p.nombre} ${p.apellido}?\n\n⚠️ ATENCIÓN: Esto eliminará PERMANENTEMENTE:\n• Todas sus reservas\n• Todas sus sanciones\n• Sus credenciales de login\n• Todas sus asociaciones a programas\n\nEsta acción NO se puede deshacer.`,
                           onConfirm: () => deleteConfirmed(p.ci, `${p.nombre} ${p.apellido}`)
                         })}
                       title="Eliminar"
@@ -405,59 +584,160 @@ export default function GestionParticipantes() {
                 />
               </div>
 
-              <div className="form-group">
-                <label htmlFor="tipo_participante">Tipo de participante *</label>
-                <select
-                  id="tipo_participante"
-                  value={formData.tipo_participante}
-                  onChange={(e) => setFormData({ ...formData, tipo_participante: e.target.value })}
-                  className="form-input"
-                  required
-                >
-                  <option value="">No especificado</option>
-                  <option value="estudiante">Estudiante</option>
-                  <option value="docente">Docente</option>
-                  <option value="postgrado">Postgrado</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label htmlFor="programa">Programa académico</label>
-                {programas && programas.length > 0 ? (
-                  <select
-                    id="programa"
-                    value={formData.programa_academico}
-                    onChange={(e) => setFormData({ ...formData, programa_academico: e.target.value })}
+              {modoModal === 'crear' && (
+                <div className="form-group">
+                  <label htmlFor="contraseña">Contraseña (opcional, crea credenciales)</label>
+                  <input
+                    type="password"
+                    id="contraseña"
+                    value={formData.contraseña}
+                    onChange={(e) => setFormData({ ...formData, contraseña: e.target.value })}
                     className="form-input"
-                  >
-                    <option value="">No especificado</option>
+                    placeholder="Contraseña para el acceso (si se deja vacío, no se crean credenciales)"
+                  />
+                </div>
+              )}
+
+              {modoModal === 'crear' ? (
+                // Modo crear: permite múltiples programas
+                <div className="form-group">
+                  <label>Programas y Tipos * (mínimo 1)</label>
+                  
+                  {/* Lista de programas asignados */}
+                  {programasAsignados.length > 0 && (
+                    <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+                      <strong>Programas asignados ({programasAsignados.length}):</strong>
+                      <ul style={{ marginTop: '5px', paddingLeft: '20px' }}>
+                        {programasAsignados.map((prog, index) => (
+                          <li key={index} style={{ marginBottom: '5px' }}>
+                            {prog.programa} - <em>{prog.tipo.charAt(0).toUpperCase() + prog.tipo.slice(1)}</em>
+                            <button
+                              type="button"
+                              onClick={() => eliminarProgramaDeLista(index)}
+                              style={{ marginLeft: '10px', color: 'red', cursor: 'pointer', background: 'none', border: 'none' }}
+                            >
+                              ✖
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Selector para agregar nuevo programa */}
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                    <div style={{ flex: 2 }}>
+                      <label htmlFor="programa_temp">Programa</label>
+                      {programas && programas.length > 0 ? (
+                        <select
+                          id="programa_temp"
+                          value={programaTemporal.programa}
+                          onChange={(e) => setProgramaTemporal({ ...programaTemporal, programa: e.target.value })}
+                          className="form-input"
+                        >
+                          <option value="">Seleccionar programa</option>
+                          {programas.map((pr, idx) => {
+                            const idFac = pr.id_facultad ?? pr.id ?? pr._id ?? idx;
+                            const nombre = pr.nombre_programa ?? pr.label ?? pr.value ?? String(idFac);
+                            const key = `${idFac}-${nombre}-${idx}`;
+                            return (
+                              <option key={key} value={nombre}>
+                                {nombre}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          id="programa_temp"
+                          value={programaTemporal.programa}
+                          onChange={(e) => setProgramaTemporal({ ...programaTemporal, programa: e.target.value })}
+                          className="form-input"
+                          placeholder="Ingresar programa"
+                        />
+                      )}
+                    </div>
+
+                    <div style={{ flex: 1 }}>
+                      <label htmlFor="tipo_temp">Tipo</label>
+                      <select
+                        id="tipo_temp"
+                        value={programaTemporal.tipo}
+                        onChange={(e) => setProgramaTemporal({ ...programaTemporal, tipo: e.target.value })}
+                        className="form-input"
+                      >
+                        <option value="estudiante">Estudiante</option>
+                        <option value="docente">Docente</option>
+                        <option value="postgrado">Postgrado</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <button
+                        type="button"
+                        onClick={agregarProgramaALista}
+                        className="btn-primary"
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        + Agregar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                // Modo editar: un solo programa (comportamiento original)
+                <>
+                  <div className="form-group">
+                    <label htmlFor="tipo_participante">Tipo de participante *</label>
+                    <select
+                      id="tipo_participante"
+                      value={formData.tipo_participante}
+                      onChange={(e) => setFormData({ ...formData, tipo_participante: e.target.value })}
+                      className="form-input"
+                      required
+                    >
+                      <option value="">No especificado</option>
+                      <option value="estudiante">Estudiante</option>
+                      <option value="docente">Docente</option>
+                      <option value="postgrado">Postgrado</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="programa">Programa académico</label>
+                    {programas && programas.length > 0 ? (
+                      <select
+                        id="programa"
+                        value={formData.programa_academico}
+                        onChange={(e) => setFormData({ ...formData, programa_academico: e.target.value })}
+                        className="form-input"
+                      >
+                        <option value="">No especificado</option>
                         {programas.map((pr, idx) => {
-                          // Compose a stable unique key to avoid duplicates even when
-                          // backend returns multiple entries with the same id_facultad
-                          // but different encodings of the name.
-                          const idFac = pr.id_facultad ?? pr.id ?? pr._id ?? idx
-                          const nombre = pr.nombre_programa ?? pr.label ?? pr.value ?? String(idFac)
-                          const key = `${idFac}-${nombre}-${idx}`
+                          const idFac = pr.id_facultad ?? pr.id ?? pr._id ?? idx;
+                          const nombre = pr.nombre_programa ?? pr.label ?? pr.value ?? String(idFac);
+                          const key = `${idFac}-${nombre}-${idx}`;
                           return (
                             <option key={key} value={nombre}>
                               {nombre}
                             </option>
-                          )
+                          );
                         })}
-                  </select>
-                ) : (
-                  // Fallback: si no hay lista de programas disponible por el backend,
-                  // permitir ingresar libremente el nombre/clase de programa.
-                  <input
-                    type="text"
-                    id="programa"
-                    value={formData.programa_academico}
-                    onChange={(e) => setFormData({ ...formData, programa_academico: e.target.value })}
-                    className="form-input"
-                    placeholder="Ingresar programa (backend no expone lista)"
-                  />
-                )}
-              </div>
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        id="programa"
+                        value={formData.programa_academico}
+                        onChange={(e) => setFormData({ ...formData, programa_academico: e.target.value })}
+                        className="form-input"
+                        placeholder="Ingresar programa"
+                      />
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="modal-actions">
                 <button type="button" className="btn-secondary" onClick={cerrarModal}>

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import reservaService from '../../../services/reservaService'
 import { useAuth } from '../../../hooks/useAuth'
 
-const ESTADOS = ['activa', 'cancelada', 'sin asistencia', 'finalizada', 'asistida']
+const ESTADOS = ['activa', 'cancelada', 'sin asistencia', 'finalizada']
 
 export default function GestionReservas() {
   const { logout } = useAuth()

@@ -54,18 +54,37 @@ export const listarSalas = async (edificio = null, tipo_sala = null, min_capacid
       credentials: 'include',
     });
 
-    const data = await response.json();
+    // Try to parse JSON, but fall back to raw text when server returns an HTML/error page
+    let data = null;
+    let textBody = null;
+    try {
+      data = await response.json();
+    } catch (jsonErr) {
+      // Not JSON (e.g. 500 page), try to capture text for debugging
+      try {
+        textBody = await response.text();
+      } catch (e) {
+        textBody = null;
+      }
+    }
+
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || (textBody ? textBody : 'No autorizado') }
+    }
 
     if (!response.ok) {
+      // Log detailed info to help debugging (visible in browser console)
+      console.error('[salaService] listarSalas error', { url, status: response.status, json: data, text: textBody });
+      const errMsg = (data && (data.error || data.mensaje)) || textBody || 'Error al listar salas';
       return {
         ok: false,
-        error: data.error || data.mensaje || 'Error al listar salas',
+        error: errMsg,
       };
     }
 
     return {
       ok: true,
-      data: data.salas || [],
+      data: (data && (data.salas || data)) || [],
     };
   } catch (error) {
     return {
@@ -92,6 +111,10 @@ export const obtenerSala = async (nombre_sala, edificio) => {
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
 
     if (!response.ok) {
       return {
@@ -127,6 +150,10 @@ export const crearSala = async (sala) => {
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
 
     if (!response.ok) {
       return {
@@ -167,6 +194,10 @@ export const actualizarSala = async (nombre_sala, edificio, datos) => {
 
     const data = await response.json();
 
+    if (response.status === 401) {
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
+
     if (!response.ok) {
       return {
         ok: false,
@@ -203,6 +234,11 @@ export const eliminarSala = async (nombre_sala, edificio) => {
     });
 
     const data = await response.json();
+
+    if (response.status === 401) {
+      try { const { logout } = await import('./authService'); logout() } catch (e) { /* ignore */ }
+      return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+    }
 
     if (!response.ok) {
       return {
