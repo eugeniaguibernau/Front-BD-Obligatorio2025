@@ -161,6 +161,32 @@
   margin: 0 0 1rem 0;
 }
 
+
+.submit-button:hover:not(:disabled) {
+  background: #002a55 !important;
+  transform: none !important;
+  box-shadow: 0 4px 12px rgba(0, 51, 102, 0.25) !important;
+}
+
+.login-card {
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+}
+
+.login-subtitle {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.form-input {
+  border-radius: 4px;
+}
+
+.error-message {
+  animation: none;
+  border-left: 4px solid #c33;
+}
+
+
 /* Responsive */
 @media (max-width: 480px) {
   .login-card {

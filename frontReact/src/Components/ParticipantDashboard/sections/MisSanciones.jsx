@@ -149,30 +149,45 @@ export default function MisSanciones({ setTienesSanciones }) {
   // No real-time remaining display — show only dates from backend
 
   return (
-    <div className="seccion" style={{ fontFamily: '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}>
-      <h1>Mis Sanciones</h1>
-      <p>Historial de sanciones aplicadas</p>
+    <div
+      className="seccion"
+      style={{
+        fontFamily:
+          '"Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      }}
+    >
+      <h1>Mis sanciones</h1>
+      <p>Historial de sanciones asociadas a tu usuario.</p>
 
-      {loading && <p>Cargando sanciones...</p>}
+      {loading && <p>Cargando sanciones…</p>}
       {error && <div className="alert-banner alert-rojo">{error}</div>}
 
-  <table className="tabla-participante" style={{ color: '#000' }}>
+      <table className="tabla-participante" style={{ color: '#000' }}>
         <thead>
           <tr>
-            <th>Fecha Inicio</th>
-            <th>Fecha Fin Sancion</th>
+            <th>Fecha de inicio</th>
+            <th>Fecha de fin de sanción</th>
             <th>Estado</th>
           </tr>
         </thead>
         <tbody>
-          {(!sanciones || sanciones.length === 0) ? (
+          {!sanciones || sanciones.length === 0 ? (
             <tr>
-              <td colSpan={3} className="sin-datos">No tienes sanciones</td>
+              <td colSpan={3} className="sin-datos">
+                No se registran sanciones asociadas a tu usuario.
+              </td>
             </tr>
           ) : (
-            sanciones.map((s) => (
-              <tr key={s.id || s.id_sancion || `${s.tipo}_${s.fecha_inicio}`}>
-                <td>{s.fecha_inicio || s.fechaInicio || s.fecha || '—'}</td>
+            sanciones.map(s => (
+              <tr
+                key={s.id || s.id_sancion || `${s.tipo}_${s.fecha_inicio}`}
+              >
+                <td>
+                  {s.fecha_inicio ||
+                    s.fechaInicio ||
+                    s.fecha ||
+                    '—'}
+                </td>
                 <td>{s.fecha_fin || s.fechaFin || '—'}</td>
                 <td>{'sin asistencia'}</td>
               </tr>
@@ -182,4 +197,5 @@ export default function MisSanciones({ setTienesSanciones }) {
       </table>
     </div>
   )
+
 }

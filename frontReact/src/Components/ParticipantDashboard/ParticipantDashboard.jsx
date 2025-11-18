@@ -1,7 +1,4 @@
-/**
- * Componente Dashboard para Participantes
- * Panel de control con navbar lateral y múltiples secciones
- */
+// src/components/participant/ParticipantDashboard.jsx
 
 import { useState } from 'react'
 import { useAuth } from '../../hooks/useAuth'
@@ -20,7 +17,12 @@ export const ParticipantDashboard = () => {
   const renderizarSeccion = () => {
     switch (seccionActiva) {
       case 'dashboard':
-        return <DashboardPersonal tienesSanciones={tienesSanciones} setTienesSanciones={setTienesSanciones} />
+        return (
+          <DashboardPersonal
+            tienesSanciones={tienesSanciones}
+            setTienesSanciones={setTienesSanciones}
+          />
+        )
       case 'reservas':
         return <MisReservas />
       case 'crear':
@@ -28,19 +30,25 @@ export const ParticipantDashboard = () => {
       case 'sanciones':
         return <MisSanciones setTienesSanciones={setTienesSanciones} />
       default:
-        return <DashboardPersonal tienesSanciones={tienesSanciones} setTienesSanciones={setTienesSanciones} />
+        return (
+          <DashboardPersonal
+            tienesSanciones={tienesSanciones}
+            setTienesSanciones={setTienesSanciones}
+          />
+        )
     }
   }
 
   return (
     <div className="participant-dashboard">
-      {/* Navbar Lateral */}
+      {/* Barra lateral */}
       <nav className={`participant-sidebar ${sidebarAbierto ? 'abierto' : 'cerrado'}`}>
         <div className="sidebar-header">
-          <h2>Mis Reservas</h2>
-          <button 
+          <h2>Sistema de reservas</h2>
+          <button
             className="sidebar-toggle"
             onClick={() => setSidebarAbierto(!sidebarAbierto)}
+            aria-label="Alternar menú lateral"
           >
             ☰
           </button>
@@ -51,47 +59,43 @@ export const ParticipantDashboard = () => {
             className={`menu-item ${seccionActiva === 'dashboard' ? 'activo' : ''}`}
             onClick={() => setSeccionActiva('dashboard')}
           >
-            <span className="menu-icon">👤</span>
-            <span className="menu-text">Mi Perfil</span>
+            <span className="menu-text">Inicio</span>
           </button>
 
           <button
             className={`menu-item ${seccionActiva === 'reservas' ? 'activo' : ''}`}
             onClick={() => setSeccionActiva('reservas')}
           >
-            <span className="menu-icon">📅</span>
-            <span className="menu-text">Mis Reservas</span>
+            <span className="menu-text">Mis reservas</span>
           </button>
 
           <button
             className={`menu-item ${seccionActiva === 'crear' ? 'activo' : ''}`}
             onClick={() => setSeccionActiva('crear')}
           >
-            <span className="menu-icon">➕</span>
-            <span className="menu-text">Crear Reserva</span>
+            <span className="menu-text">Nueva reserva</span>
           </button>
 
           <button
             className={`menu-item ${seccionActiva === 'sanciones' ? 'activo' : ''}`}
             onClick={() => setSeccionActiva('sanciones')}
           >
-            <span className="menu-icon">⚠️</span>
-            <span className="menu-text">Mis Sanciones</span>
+            <span className="menu-text">Historial de sanciones</span>
           </button>
         </div>
 
         <div className="sidebar-footer">
           <div className="user-card">
             <p className="user-email">{user?.correo}</p>
-            <p className="user-role">👤 Participante</p>
+            <p className="user-role">Perfil: Participante</p>
           </div>
           <button onClick={logout} className="logout-button">
-            Cerrar Sesión
+            Cerrar sesión
           </button>
         </div>
       </nav>
 
-      {/* Contenido Principal */}
+      {/* Contenido principal */}
       <main className="participant-content">
         {renderizarSeccion()}
       </main>

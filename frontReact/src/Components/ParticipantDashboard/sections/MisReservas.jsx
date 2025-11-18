@@ -291,59 +291,128 @@ export default function MisReservas() {
 
   return (
     <div className="seccion">
-      <h1>Mis Reservas</h1>
-      <p style={{ marginBottom: '0.25rem' }}>Todas tus reservas en el sistema</p>
+      <h1>Mis reservas</h1>
+      <p style={{ marginBottom: '0.25rem' }}>
+        Listado de reservas registradas en el sistema.
+      </p>
 
       <div className="controles" style={{ marginBottom: '0.25rem' }}>
         <input
           type="text"
-          placeholder="Buscar reserva..."
+          placeholder="Buscar reserva por sala, fecha o estado"
           className="search-input"
           value={query}
           onChange={e => setQuery(e.target.value)}
         />
       </div>
 
-      {loading && <p>Cargando reservas...</p>}
+      {loading && <p>Cargando reservas…</p>}
       {error && <div className="alert-banner alert-rojo">{error}</div>}
-      {message && <div className={`alert-banner ${/error|Error|No/i.test(message) ? 'alert-rojo' : 'alert-verde'}`}>{message}</div>}
+      {message && (
+        <div
+          className={`alert-banner ${
+            /error|Error|No/i.test(message) ? 'alert-rojo' : 'alert-verde'
+          }`}
+        >
+          {message}
+        </div>
+      )}
 
-      {/* Summary badges */}
-      <div className="resumen-row" style={{ display: 'flex', gap: '1rem', margin: '0.25rem 0' }}>
-        <div style={{ flex: 1, background: '#f5f5f5', padding: '0.5rem 0.75rem', borderRadius: 6 }}>
-          <div style={{ fontSize: '0.9rem', color: '#333', fontWeight: 600 }}>Reservas activas</div>
-          <div style={{ fontSize: '1.1rem', color: '#000' }}>{activeReservas.length}</div>
+      {/* Resumen de cantidades */}
+      <div
+        className="resumen-row"
+        style={{ display: 'flex', gap: '1rem', margin: '0.25rem 0' }}
+      >
+        <div
+          style={{
+            flex: 1,
+            background: '#f5f5f5',
+            padding: '0.5rem 0.75rem',
+            borderRadius: 6,
+          }}
+        >
+          <div
+            style={{ fontSize: '0.9rem', color: '#333', fontWeight: 600 }}
+          >
+            Reservas activas
+          </div>
+          <div style={{ fontSize: '1.1rem', color: '#000' }}>
+            {activeReservas.length}
+          </div>
         </div>
-        <div style={{ flex: 1, background: '#f5f5f5', padding: '0.5rem 0.75rem', borderRadius: 6 }}>
-          <div style={{ fontSize: '0.9rem', color: '#333', fontWeight: 600 }}>Reservas canceladas / no asistidas</div>
-          <div style={{ fontSize: '1.1rem', color: '#000' }}>{cancelledOrNoAsistReservas.length}</div>
+        <div
+          style={{
+            flex: 1,
+            background: '#f5f5f5',
+            padding: '0.5rem 0.75rem',
+            borderRadius: 6,
+          }}
+        >
+          <div
+            style={{ fontSize: '0.9rem', color: '#333', fontWeight: 600 }}
+          >
+            Reservas canceladas / sin asistencia
+          </div>
+          <div style={{ fontSize: '1.1rem', color: '#000' }}>
+            {cancelledOrNoAsistReservas.length}
+          </div>
         </div>
-        <div style={{ flex: 1, background: '#f5f5f5', padding: '0.5rem 0.75rem', borderRadius: 6 }}>
-          <div style={{ fontSize: '0.9rem', color: '#333', fontWeight: 600 }}>Reservas asistidas</div>
-          <div style={{ fontSize: '1.1rem', color: '#000' }}>{asistidasReservas.length}</div>
+        <div
+          style={{
+            flex: 1,
+            background: '#f5f5f5',
+            padding: '0.5rem 0.75rem',
+            borderRadius: 6,
+          }}
+        >
+          <div
+            style={{ fontSize: '0.9rem', color: '#333', fontWeight: 600 }}
+          >
+            Reservas con asistencia registrada
+          </div>
+          <div style={{ fontSize: '1.1rem', color: '#000' }}>
+            {asistidasReservas.length}
+          </div>
         </div>
       </div>
 
-      {/* Render groups in order; when a query exists, show groups with matches first */}
       {(() => {
         const groups = [
-          { key: 'active', label: 'Reservas activas', items: activeReservas },
-          { key: 'cancelled', label: 'Reservas canceladas / no asistidas', items: cancelledOrNoAsistReservas },
-          { key: 'asistidas', label: 'Reservas asistidas', items: asistidasReservas }
+          {
+            key: 'active',
+            label: 'Reservas activas',
+            items: activeReservas,
+          },
+          {
+            key: 'cancelled',
+            label: 'Reservas canceladas / sin asistencia',
+            items: cancelledOrNoAsistReservas,
+          },
+          {
+            key: 'asistidas',
+            label: 'Reservas con asistencia registrada',
+            items: asistidasReservas,
+          },
         ]
-        const ordered = (query && query !== '') ? [...groups].sort((a, b) => b.items.length - a.items.length) : groups
+        const ordered =
+          query && query !== ''
+            ? [...groups].sort((a, b) => b.items.length - a.items.length)
+            : groups
         return ordered.map((g, idx) => {
           const isActive = g.key === 'active'
-          const colSpan = isActive ? 6 : 5 // Ahora hay 2 columnas más (Hora Inicio + Hora Fin)
+          const colSpan = isActive ? 6 : 5
           return (
             <div key={g.key} style={{ marginTop: idx === 0 ? 0 : '1.5rem' }}>
-              <table className="tabla-participante" style={{ color: '#000', marginTop: 0 }}>
+              <table
+                className="tabla-participante"
+                style={{ color: '#000', marginTop: 0 }}
+              >
                 <thead>
                   <tr>
                     <th>Sala</th>
                     <th>Fecha</th>
-                    <th>Hora Inicio</th>
-                    <th>Hora Fin</th>
+                    <th>Hora de inicio</th>
+                    <th>Hora de fin</th>
                     <th>Estado</th>
                     {isActive && <th>Acciones</th>}
                   </tr>
@@ -351,18 +420,47 @@ export default function MisReservas() {
                 <tbody>
                   {g.items.length === 0 ? (
                     <tr>
-                      <td colSpan={colSpan} className="sin-datos">{query && query !== '' ? 'No se encontraron resultados en esta sección' : (isActive ? 'No se encontraron reservas activas' : 'No hay reservas')}</td>
+                      <td colSpan={colSpan} className="sin-datos">
+                        {query && query !== ''
+                          ? 'No se encontraron resultados en esta sección.'
+                          : isActive
+                          ? 'No se encontraron reservas activas registradas.'
+                          : 'No hay reservas registradas en esta categoría.'}
+                      </td>
                     </tr>
                   ) : (
-                    g.items.map((r) => (
+                    g.items.map(r => (
                       <tr key={`${g.key}_${r.id_reserva || r.id}`}>
-                        <td>{r.nombre_sala} {r.edificio ? `- ${r.edificio}` : ''}</td>
-                        <td>{editingId === (r.id_reserva || r.id) ? (<input type="date" value={editFecha} onChange={e => setEditFecha(e.target.value)} />) : (r.fecha || '—')}</td>
-                        <td>{r.turno && r.turno.hora_inicio ? r.turno.hora_inicio : '—'}</td>
-                        <td>{r.turno && r.turno.hora_fin ? r.turno.hora_fin : '—'}</td>
+                        <td>
+                          {r.nombre_sala}{' '}
+                          {r.edificio ? `- ${r.edificio}` : ''}
+                        </td>
+                        <td>
+                          {editingId === (r.id_reserva || r.id) ? (
+                            <input
+                              type="date"
+                              value={editFecha}
+                              onChange={e => setEditFecha(e.target.value)}
+                            />
+                          ) : (
+                            r.fecha || '—'
+                          )}
+                        </td>
+                        <td>
+                          {r.turno && r.turno.hora_inicio
+                            ? r.turno.hora_inicio
+                            : '—'}
+                        </td>
+                        <td>
+                          {r.turno && r.turno.hora_fin
+                            ? r.turno.hora_fin
+                            : '—'}
+                        </td>
                         {(() => {
-                          const displayEstado = isAsistida(r) ? 'asistida' : (r.estado || r.estado_actual || '—')
-                          return (<td>{displayEstado}</td>)
+                          const displayEstado = isAsistida(r)
+                            ? 'asistida'
+                            : r.estado || r.estado_actual || '—'
+                          return <td>{displayEstado}</td>
                         })()}
                         {isActive && (
                           <td>
@@ -370,30 +468,56 @@ export default function MisReservas() {
                               <>
                                 <button
                                   className="btn-sec"
-                                  onClick={() => saveEdit(r.id_reserva || r.id)}
+                                  onClick={() =>
+                                    saveEdit(r.id_reserva || r.id)
+                                  }
                                   disabled={actionLoading}
-                                >Guardar</button>
+                                >
+                                  Guardar cambios
+                                </button>
                                 <button
                                   className="btn-link"
                                   onClick={cancelEdit}
                                   disabled={actionLoading}
-                                >Cancelar</button>
+                                >
+                                  Cancelar edición
+                                </button>
                               </>
                             ) : (
                               <>
                                 <button
                                   className="btn-danger"
-                                  onClick={() => handleCancel(r.id_reserva || r.id)}
-                                  disabled={actionLoading || ((r.estado || '').toString().toLowerCase() === 'cancelada')}
+                                  onClick={() =>
+                                    handleCancel(r.id_reserva || r.id)
+                                  }
+                                  disabled={
+                                    actionLoading ||
+                                    (r.estado || '')
+                                      .toString()
+                                      .toLowerCase() === 'cancelada'
+                                  }
                                 >
-                                  Cancelar
+                                  Cancelar reserva
                                 </button>
                                 <button
                                   className="btn-sec"
                                   onClick={() => startEdit(r)}
-                                  disabled={actionLoading || ((r.estado || '').toString().toLowerCase() !== 'activa')}
-                                  title={((r.estado || '').toString().toLowerCase() !== 'activa') ? 'Solo se puede editar reservas activas' : ''}
-                                >Editar</button>
+                                  disabled={
+                                    actionLoading ||
+                                    (r.estado || '')
+                                      .toString()
+                                      .toLowerCase() !== 'activa'
+                                  }
+                                  title={
+                                    (r.estado || '')
+                                      .toString()
+                                      .toLowerCase() !== 'activa'
+                                      ? 'Solo se pueden modificar reservas activas.'
+                                      : ''
+                                  }
+                                >
+                                  Modificar fecha
+                                </button>
                               </>
                             )}
                           </td>
@@ -409,4 +533,5 @@ export default function MisReservas() {
       })()}
     </div>
   )
+
 }

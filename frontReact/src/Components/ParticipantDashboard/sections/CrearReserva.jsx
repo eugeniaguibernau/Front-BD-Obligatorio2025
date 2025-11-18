@@ -151,13 +151,19 @@ export default function CrearReserva({ tienesSanciones }) {
   if (tienesSanciones) {
     return (
       <div className="seccion">
-        <h1>Crear Reserva</h1>
+        <h1>Nueva reserva</h1>
         <div className="alert-banner alert-rojo">
-          ⚠️ No puedes crear reservas - Tienes sanciones vigentes
+          No estás habilitado para generar nuevas reservas debido a sanciones vigentes.
         </div>
-        <p style={{ marginTop: '1rem', color: '#666', fontSize: '0.95rem' }}>
-          Para poder crear reservas, debes esperar a que finalicen tus sanciones activas. 
-          Puedes ver el detalle en la sección "Mis Sanciones".
+        <p
+          style={{
+            marginTop: '1rem',
+            color: '#666',
+            fontSize: '0.95rem',
+          }}
+        >
+          Para volver a reservar, deberás esperar a la finalización de las sanciones activas.
+          Podés consultar el detalle en la sección «Historial de sanciones».
         </p>
       </div>
     )
@@ -166,9 +172,10 @@ export default function CrearReserva({ tienesSanciones }) {
   if (bloqueadoPorSancion) {
     return (
       <div className="seccion">
-        <h1>Crear Reserva</h1>
+        <h1>Nueva reserva</h1>
         <div className="alert-banner alert-rojo">
-          ⚠️ {detalleSancion || 'No puedes crear reservas: tienes sanciones vigentes.'}
+          {detalleSancion ||
+            'En este momento no estás habilitado para generar nuevas reservas debido a sanciones vigentes.'}
         </div>
       </div>
     )
@@ -360,16 +367,23 @@ export default function CrearReserva({ tienesSanciones }) {
 
   return (
     <div className="seccion">
-      <h1>Crear Nueva Reserva</h1>
-      <p>Completa los datos para hacer una nueva reserva</p>
+      <h1>Nueva reserva</h1>
+      <p>Complete los siguientes datos para generar una nueva reserva.</p>
 
       {mensaje && <div className="alert-banner alert-verde">{mensaje}</div>}
       {error && <div className="alert-banner alert-rojo">{error}</div>}
       {invalidParticipants.length > 0 && (
         <div className="form-group">
-          <div className="alert-banner alert-rojo">Participante(s) inválido(s): {invalidParticipants.join(', ')}</div>
-          <button type="button" className="btn-secondary" onClick={handleRemoveInvalidsAndRetry} disabled={loading}>
-            Eliminar participante(s) inválido(s) y reintentar
+          <div className="alert-banner alert-rojo">
+            Se detectaron participantes inválidos: {invalidParticipants.join(', ')}
+          </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={handleRemoveInvalidsAndRetry}
+            disabled={loading}
+          >
+            Quitar participantes inválidos y volver a intentar
           </button>
         </div>
       )}
@@ -378,26 +392,38 @@ export default function CrearReserva({ tienesSanciones }) {
         <div className="form-group">
           <label htmlFor="sala">Sala</label>
           {salas.length === 0 ? (
-            <div className="form-input">No hay salas disponibles o no se pudieron cargar.</div>
+            <div className="form-input">
+              No se encontraron salas disponibles o no fue posible cargar la
+              información.
+            </div>
           ) : (
-            <select id="sala" className="form-input" value={selectedSalaIndex} onChange={e => setSelectedSalaIndex(e.target.value)}>
-              <option value="">-- Seleccione una sala --</option>
+            <select
+              id="sala"
+              className="form-input"
+              value={selectedSalaIndex}
+              onChange={e => setSelectedSalaIndex(e.target.value)}
+            >
+              <option value="">Seleccione una sala</option>
               {salas.map((s, i) => {
-                // Generar key única combinando múltiples identificadores + índice
                 const keyParts = [
                   s.id_sala || s.id || s._id,
                   s.nombre_sala || s.nombre,
                   s.edificio || s.nombre_edificio,
-                  i
+                  i,
                 ].filter(Boolean)
                 const uniqueKey = keyParts.join('_')
-                
+
                 return (
-                  <option
-                    key={uniqueKey}
-                    value={String(i)}
-                  >
-                    {((s.nombre_sala || s.nombre) ? `${(s.nombre_sala || s.nombre)} (${s.edificio || s.nombre_edificio || s.edificio || ''})` : (s.id || s._id || `Sala ${i + 1}`))}
+                  <option key={uniqueKey} value={String(i)}>
+                    {(s.nombre_sala || s.nombre) &&
+                    (s.edificio || s.nombre_edificio || s.edificio)
+                      ? `${s.nombre_sala || s.nombre} (${
+                          s.edificio ||
+                          s.nombre_edificio ||
+                          s.edificio ||
+                          ''
+                        })`
+                      : s.id || s._id || `Sala ${i + 1}`}
                   </option>
                 )
               })}
@@ -406,57 +432,89 @@ export default function CrearReserva({ tienesSanciones }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="fecha">Seleccionar Fecha</label>
-          <input type="date" id="fecha" className="form-input" value={fecha} onChange={e => setFecha(e.target.value)} />
+          <label htmlFor="fecha">Fecha de la reserva</label>
+          <input
+            type="date"
+            id="fecha"
+            className="form-input"
+            value={fecha}
+            onChange={e => setFecha(e.target.value)}
+          />
         </div>
 
         <div className="form-group">
-          <label htmlFor="turno">Turno (máximo 2 consecutivos)</label>
+          <label htmlFor="turno">Turno (máximo dos turnos consecutivos)</label>
           {turnos.length === 0 ? (
-            <div className="form-input">Seleccione fecha y sala para ver los turnos disponibles.</div>
+            <div className="form-input">
+              Seleccione una sala y una fecha para visualizar los turnos
+              disponibles.
+            </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+              }}
+            >
               {turnos.map((t, i) => (
-                <label 
+                <label
                   key={t.id_turno ?? t.id ?? i}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     padding: '10px',
-                    border: selectedTurnosIds.includes(t.id_turno) ? '2px solid #2196F3' : '1px solid #ddd',
+                    border: selectedTurnosIds.includes(t.id_turno)
+                      ? '2px solid #123a7a'
+                      : '1px solid #ddd',
                     borderRadius: '4px',
-                    backgroundColor: selectedTurnosIds.includes(t.id_turno) ? '#e3f2fd' : 'white',
-                    cursor: t.disponible === false ? 'not-allowed' : 'pointer',
-                    opacity: t.disponible === false ? 0.5 : 1
+                    backgroundColor: selectedTurnosIds.includes(t.id_turno)
+                      ? '#e6ecfa'
+                      : 'white',
+                    cursor:
+                      t.disponible === false ? 'not-allowed' : 'pointer',
+                    opacity: t.disponible === false ? 0.6 : 1,
                   }}
                 >
                   <input
                     type="checkbox"
                     checked={selectedTurnosIds.includes(t.id_turno)}
                     disabled={t.disponible === false}
-                    onChange={(e) => {
+                    onChange={e => {
                       const isChecked = e.target.checked
                       setSelectedTurnosIds(prev => {
                         let nuevosSeleccionados = [...prev]
-                        
+
                         if (isChecked) {
-                          // Solo permitir máximo 2 turnos
                           if (nuevosSeleccionados.length >= 2) {
-                            alert('Solo puede seleccionar máximo 2 turnos consecutivos (máximo 2 horas)')
+                            alert(
+                              'Solo es posible seleccionar hasta dos turnos consecutivos (máximo dos horas).'
+                            )
                             return prev
                           }
                           nuevosSeleccionados.push(t.id_turno)
                         } else {
-                          nuevosSeleccionados = nuevosSeleccionados.filter(id => id !== t.id_turno)
+                          nuevosSeleccionados = nuevosSeleccionados.filter(
+                            id => id !== t.id_turno
+                          )
                         }
-                        
+
                         return nuevosSeleccionados
                       })
                     }}
                     style={{ marginRight: '10px' }}
                   />
-                  <strong>{t.hora_inicio?.slice(0,5) ?? ''} - {t.hora_fin?.slice(0,5) ?? ''}</strong>
-                  {t.disponible === false && <span style={{ marginLeft: '10px', color: '#999' }}>(ocupado)</span>}
+                  <strong>
+                    {t.hora_inicio?.slice(0, 5) ?? ''} -{' '}
+                    {t.hora_fin?.slice(0, 5) ?? ''}
+                  </strong>
+                  {t.disponible === false && (
+                    <span
+                      style={{ marginLeft: '10px', color: '#999' }}
+                    >
+                      (turno ocupado)
+                    </span>
+                  )}
                 </label>
               ))}
             </div>
@@ -465,28 +523,40 @@ export default function CrearReserva({ tienesSanciones }) {
 
         <div className="form-group">
           <label htmlFor="participantes">
-            Participantes (CI separados por coma) *
+            Participantes (cédulas de identidad separadas por coma)
           </label>
-          <textarea 
-            id="participantes" 
-            className="form-input" 
-            rows={3} 
-            value={participantesText} 
-            onChange={e => setParticipantesText(e.target.value)} 
-            placeholder={userCI ? `${userCI}, 12345678, 87654321` : 'Tu CI, 12345678, 87654321'}
+          <textarea
+            id="participantes"
+            className="form-input"
+            rows={3}
+            value={participantesText}
+            onChange={e => setParticipantesText(e.target.value)}
+            placeholder={
+              userCI
+                ? `${userCI}, 12345678, 87654321`
+                : 'Tu cédula, 12345678, 87654321'
+            }
             required
           />
-          <small style={{ color: '#d32f2f', fontSize: '0.9em', marginTop: '6px', display: 'block', fontWeight: '500' }}>
-            ⚠️ <strong>OBLIGATORIO:</strong> Debes incluir tu propia cédula ({userCI ? <strong>{userCI}</strong> : 'cargando...'}) en la lista.
-            <br />
-            No puedes crear reservas únicamente para otras personas.
+          <small
+            style={{
+              color: '#444',
+              fontSize: '0.9em',
+              marginTop: '6px',
+              display: 'block',
+            }}
+          >
+            Es obligatorio incluir tu propia cédula de identidad en la lista de
+            participantes. No se admiten reservas realizadas únicamente para
+            terceros.
           </small>
         </div>
 
         <button type="submit" className="btn-primary" disabled={loading}>
-          {loading ? 'Creando...' : 'Crear Reserva'}
+          {loading ? 'Procesando reserva…' : 'Confirmar reserva'}
         </button>
       </form>
     </div>
   )
+
 }

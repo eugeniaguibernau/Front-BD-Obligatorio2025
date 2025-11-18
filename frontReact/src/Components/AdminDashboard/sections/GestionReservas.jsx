@@ -95,7 +95,7 @@ export default function GestionReservas() {
   }, [reservas, busqueda, filtroEstado])
 
   const handleEliminar = async (reserva) => {
-    if (!window.confirm(`¿Eliminar la reserva #${reserva.id_reserva}?`)) return
+    if (!window.confirm(`¿Confirmás la eliminación de la reserva #${reserva.id_reserva}?`)) return
     
     setMessage(null)
     const res = await reservaService.eliminarReserva(reserva.id_reserva)
@@ -395,7 +395,7 @@ export default function GestionReservas() {
   return (
     <div className="seccion">
       <h1>Gestión de Reservas</h1>
-      <p>Administra todas las reservas del sistema</p>
+      <p>Consultá, actualizá y administrá las reservas registradas en el sistema.</p>
 
       {/* Controles de búsqueda y filtros */}
       <div className="controles">
@@ -405,7 +405,7 @@ export default function GestionReservas() {
         
         <input
           type="text"
-          placeholder="🔍 Buscar por sala, edificio, fecha..."
+          placeholder="Buscar por sala, edificio, fecha o estado"
           className="search-input"
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}

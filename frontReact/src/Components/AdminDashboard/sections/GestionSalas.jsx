@@ -154,7 +154,7 @@ export default function GestionSalas() {
   }
 
   const handleEliminar = async (nombre_sala, edificio) => {
-    if (!window.confirm(`¿Estás seguro de eliminar la sala ${nombre_sala} del edificio ${edificio}?`)) {
+    if (!window.confirm(`¿Confirmás la eliminación de la sala "${nombre_sala}" del edificio "${edificio}"?`)) {
       return
     }
 
@@ -173,8 +173,8 @@ export default function GestionSalas() {
 
   return (
     <div className="seccion">
-      <h1>Gestión de Salas</h1>
-      <p>Administra todas las salas del sistema</p>
+      <h1>Gestión de salas</h1>
+      <p>Administrá la información de las salas disponibles en el sistema.</p>
 
       {error && !mostrarModal && (
         <div className="alert-banner alert-rojo">{error}</div>
@@ -183,7 +183,7 @@ export default function GestionSalas() {
       <div className="controles">
         <input
           type="text"
-          placeholder="Buscar por nombre o edificio..."
+          placeholder="Buscar por nombre de sala o edificio"
           className="search-input"
           value={busqueda}
           onChange={(e) => handleBuscar(e.target.value)}
@@ -199,7 +199,7 @@ export default function GestionSalas() {
           ))}
         </select>
         <button className="btn-primary" onClick={abrirModalCrear}>
-          + Crear Sala
+          Nueva sala
         </button>
       </div>
 
@@ -220,7 +220,9 @@ export default function GestionSalas() {
             {salas.length === 0 ? (
               <tr>
                 <td colSpan="5" className="sin-datos">
-                  {busqueda || filtroEdificio ? 'No se encontraron salas' : 'No hay salas'}
+                    {busqueda || filtroEdificio
+                    ? 'No se encontraron salas con los filtros aplicados.'
+                    : 'No hay salas registradas en el sistema.'}
                 </td>
               </tr>
             ) : (

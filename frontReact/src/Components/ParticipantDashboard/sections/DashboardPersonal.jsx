@@ -144,31 +144,31 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
 
   return (
     <div className="seccion">
-      <h1>Mi Perfil</h1>
+      <h1>Mi perfil</h1>
 
       {/* Banner de sanciones */}
       {!loading && tieneSancionesVigentes && (
         <div className="alert-banner alert-rojo">
-          ⚠️ No autorizado para reservar - Tienes sanciones vigentes
+          No estás habilitado para generar nuevas reservas debido a sanciones vigentes.
         </div>
       )}
 
       {!loading && !tieneSancionesVigentes && (
         <div className="alert-banner alert-verde">
-          ✓ Autorizado para reservar
+          Estás habilitado para realizar reservas.
         </div>
       )}
 
       {/* Información personal */}
       <div className="perfil-card">
-        <h2>Información Personal</h2>
+        <h2>Información personal</h2>
         <div className="info-grid">
           <div className="info-item">
             <label>Nombre</label>
             <p>{nombre}</p>
           </div>
           <div className="info-item">
-            <label>Email</label>
+            <label>Correo electrónico</label>
             <p>{email}</p>
           </div>
         </div>
@@ -178,31 +178,41 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
       <div className="resumen-grid">
         <div className="resumen-card">
           <div className="resumen-icon">📅</div>
-          <h3>Reservas Activas</h3>
+          <h3>Reservas activas</h3>
           <p className="resumen-numero">{loading ? '...' : reservasActivas}</p>
         </div>
 
         <div className="resumen-card">
           <div className="resumen-icon">✓</div>
-          <h3>Reservas Completadas</h3>
+          <h3>Reservas completadas</h3>
           <p className="resumen-numero">{loading ? '...' : reservasCompletadas}</p>
         </div>
 
         <div className="resumen-card">
           <div className="resumen-icon">⚠️</div>
-          <h3>Sanciones Vigentes</h3>
+          <h3>Sanciones vigentes</h3>
           {(() => {
-            console.log('🎨 Renderizando card. resumenSanciones:', resumenSanciones, 'loading:', loading)
             if (loading) {
               return <p className="resumen-numero">...</p>
             } else if (resumenSanciones) {
-              const diasRestantesCard = resumenSanciones.dias_restantes_total || resumenSanciones.datos_restantes_total || 0
+              const diasRestantesCard =
+                resumenSanciones.dias_restantes_total ||
+                resumenSanciones.datos_restantes_total ||
+                0
               return (
                 <>
-                  <p className="resumen-numero">{resumenSanciones.total_sanciones || 0}</p>
+                  <p className="resumen-numero">
+                    {resumenSanciones.total_sanciones || 0}
+                  </p>
                   {diasRestantesCard > 0 && (
-                    <p style={{ fontSize: '0.85rem', marginTop: '0.5rem', opacity: 0.9 }}>
-                      {diasRestantesCard} días restantes
+                    <p
+                      style={{
+                        fontSize: '0.85rem',
+                        marginTop: '0.5rem',
+                        opacity: 0.9,
+                      }}
+                    >
+                      {diasRestantesCard} día(s) restantes de sanción.
                     </p>
                   )}
                 </>
@@ -215,4 +225,5 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
       </div>
     </div>
   )
+
 }
