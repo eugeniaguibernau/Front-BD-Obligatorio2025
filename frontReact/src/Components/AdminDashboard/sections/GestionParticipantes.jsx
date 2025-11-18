@@ -442,7 +442,7 @@ export default function GestionParticipantes() {
   return (
     <div className="seccion">
       <h1>Gestión de Participantes</h1>
-      <p>Administra todos los participantes del sistema</p>
+      <p>Administrá los datos y programas académicos de los participantes.</p>
 
       {error && !mostrarModal && (
         <div className="alert-banner alert-rojo">{error}</div>
@@ -451,13 +451,13 @@ export default function GestionParticipantes() {
       <div className="controles">
         <input
           type="text"
-          placeholder="Buscar por CI, nombre, apellido, email o tipo..."
+          placeholder="Buscar por nombre, cédula o correo"
           className="search-input"
           value={busqueda}
           onChange={(e) => handleBuscar(e.target.value)}
         />
         <button className="btn-primary" onClick={abrirModalCrear}>
-          + Crear Participante
+          Nuevo participante
         </button>
       </div>
 

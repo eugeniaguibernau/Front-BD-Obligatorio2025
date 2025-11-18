@@ -30,12 +30,12 @@ export default function Reportes() {
   const [soloActivas, setSoloActivas] = useState(true)
 
   const reportes = [
-    { 
-      id: 1, 
-      nombre: 'Salas más reservadas', 
+    {
+      id: 1,
+      nombre: 'Salas más reservadas',
       icono: '🏛️',
-      descripcion: 'Top de salas con más reservas',
-      filtros: ['fechas', 'limit']
+      descripcion: 'Listado de las salas con mayor cantidad de reservas.',
+      filtros: ['fechas', 'limit'],
     },
     { 
       id: 2, 
@@ -79,12 +79,12 @@ export default function Reportes() {
       descripcion: 'Distribución de sanciones',
       filtros: ['fechas', 'rol']
     },
-    { 
-      id: 8, 
-      nombre: 'Utilizadas vs canceladas', 
+    {
+      id: 8,
+      nombre: 'Reservas utilizadas vs canceladas',
       icono: '📈',
-      descripcion: 'Comparativa de estados',
-      filtros: ['fechas']
+      descripcion: 'Comparativa entre reservas efectivamente utilizadas y las canceladas.',
+      filtros: ['fechas'],
     },
     { 
       id: 9, 
@@ -100,12 +100,12 @@ export default function Reportes() {
       descripcion: 'Uso por tipo de sala',
       filtros: ['fechas']
     },
-    { 
-      id: 11, 
-      nombre: 'Reincidentes en sanciones', 
+    {
+      id: 11,
+      nombre: 'Participantes con sanciones recurrentes',
       icono: '🚨',
-      descripcion: 'Usuarios con múltiples sanciones',
-      filtros: ['sanciones']
+      descripcion: 'Identificación de usuarios con múltiples sanciones registradas.',
+      filtros: ['sanciones'],
     },
   ]
 

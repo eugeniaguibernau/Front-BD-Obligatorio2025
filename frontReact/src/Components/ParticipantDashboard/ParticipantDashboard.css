@@ -1,4 +1,7 @@
 /* Participant Dashboard Styles */
+body {
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
 
 :root {
   --ucu-blue-900: #123a7a;
@@ -384,6 +387,12 @@
 
 .btn-primary:active {
   transform: translateY(0);
+}
+
+.logout-button:hover,
+.btn-primary:hover {
+  transform: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 /* RESPONSIVE */
