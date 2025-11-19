@@ -1,5 +1,5 @@
 /**
- * Mis Reservas - Tabla con todas mis reservas
+ * Mis Reservas
  */
 import { useEffect, useState } from 'react'
 import reservaService from '../../../services/reservaService'
@@ -38,13 +38,11 @@ export default function MisReservas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // whenever reservas state changes, ensure past 'activa' reservations are marked
   useEffect(() => {
     markPastAsNoAsist(reservas)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservas])
 
-  // build a normalized turno string for search/display
   const buildTurnoStr = (r) => {
     if (!r) return ''
     let turnoStr = ''
@@ -60,7 +58,6 @@ export default function MisReservas() {
     return turnoStr.trim().toLowerCase()
   }
 
-  // derived filtered reservas according to query (search across sala, fecha, turno, estado)
   const q = (query || '').trim().toLowerCase()
   const filteredReservas = q === '' ? reservas : (reservas || []).filter(r => {
     const sala = `${r.nombre_sala || ''} ${r.edificio || ''}`.toLowerCase()
@@ -70,9 +67,6 @@ export default function MisReservas() {
     return sala.includes(q) || fecha.includes(q) || turno.includes(q) || estado.includes(q)
   })
 
-  // classify reservas into active / cancelled-or-no-asist / asistidas
-  // Use reservation object (not only estado string) so we detect asistida when
-  // the backend set 'finalizada' but participants have asistencia=true.
   const getEstadoString = (r) => ((r && (r.estado_actual || r.estado)) || '').toString().toLowerCase()
 
   const isCancelledOrNoAsist = (r) => {
@@ -84,20 +78,16 @@ export default function MisReservas() {
   const isAsistida = (r) => {
     if (!r) return false
     const st = getEstadoString(r)
-    // If estado already mentions 'asist', accept it
+
     if (/asist/i.test(st) && !isCancelledOrNoAsist(r)) return true
 
-    // If reservation has a top-level asistencia/asistida boolean flag
     if (r.asistencia === true || r.asistida === true) return true
 
-    // If reservation includes participantes array, check for current user or any present
     try {
       if (Array.isArray(r.participantes) && r.participantes.length > 0) {
-        // If any participante is marked present, treat as asistida
         const anyPresent = r.participantes.some(p => p && (p.asistencia === true || p.asistencia === 1))
         if (anyPresent) return true
 
-        // If current user is present
         const ci = user && (user.ci || user.CI || user.identificacion || user.dni || user.documento)
         if (ci) {
           const me = r.participantes.find(p => {
@@ -108,12 +98,9 @@ export default function MisReservas() {
         }
       }
     } catch (e) {
-      // ignore parsing issues
     }
 
-    // Special-case: backend might set 'finalizada' as estado but include asistencia info
     if (/final/i.test(st)) {
-      // if any participante has asistencia true, treat as asistida
       if (Array.isArray(r.participantes) && r.participantes.some(p => p && (p.asistencia === true || p.asistencia === 1))) return true
     }
 
@@ -143,7 +130,6 @@ export default function MisReservas() {
     }
   }
 
-  // Cancel action: mark reservation as 'cancelada' (future) or 'sin asistencia' (past)
   const onCancel = async (r) => {
     const estadoLower = (r.estado || '').toString().toLowerCase()
     if (estadoLower !== 'activa') {
@@ -179,7 +165,6 @@ export default function MisReservas() {
     }
   }
 
-  // Edit handlers: only edit fecha, must be at least 2 days in the future
   const startEdit = (r) => {
     const estado = (r.estado || '').toString().toLowerCase()
     if (estado !== 'activa') {
@@ -198,7 +183,6 @@ export default function MisReservas() {
         return
       }
     } catch (e) {
-      // fallback
     }
     setEditFecha('')
   }
@@ -245,7 +229,6 @@ export default function MisReservas() {
     }
   }
 
-  // Mark past active reservations as 'sin asistencia' automatically
   const markPastAsNoAsist = async (list) => {
     if (!Array.isArray(list) || list.length === 0) return
     const now = new Date()
@@ -264,14 +247,13 @@ export default function MisReservas() {
       }
       if (toUpdate.length > 0) setMessage(`Se marcaron ${toUpdate.length} reservas como sin asistencia (automático)`)
     } catch (e) {
-      // ignore
+
     } finally {
       setActionLoading(false)
       fetchReservas()
     }
   }
 
-  // New: cancel reservation (automatic state change to 'cancelada')
   const handleCancel = async (id) => {
     if (!window.confirm('¿Confirmar cancelación de esta reserva?')) return
     try {
@@ -318,7 +300,6 @@ export default function MisReservas() {
         </div>
       )}
 
-      {/* Resumen de cantidades */}
       <div
         className="resumen-row"
         style={{ display: 'flex', gap: '1rem', margin: '0.25rem 0' }}

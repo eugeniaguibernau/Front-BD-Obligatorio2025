@@ -14,6 +14,7 @@ import {
   CalendarDays,
   AlertTriangle,
   BarChart3,
+  LogOut,
 } from 'lucide-react'
 
 import DashboardPrincipal from './sections/DashboardPrincipal'
@@ -49,22 +50,18 @@ export const AdminDashboard = () => {
 
   return (
     <div className="admin-dashboard">
-      {/* Barra lateral */}
-      <nav className={`admin-sidebar ${sidebarAbierto ? 'abierto' : 'cerrado'}`}>
-        <div className="sidebar-header">
-          <h2>Sistema de Gestión de Salas</h2>
-          <button
-            className="sidebar-toggle"
-            onClick={() => setSidebarAbierto(!sidebarAbierto)}
-            aria-label="Alternar menú de navegación"
-          >
-            ☰
-          </button>
+      <nav className="admin-sidebar">
+        <div className="admin-sidebar-header">
+          <h1>Sistema de Gestión</h1>
+          <div className="user-info">
+            <span className="user-email">{user?.email}</span>
+            <span className="user-role">Administrador</span>
+          </div>
         </div>
 
-        <div className="sidebar-menu">
+        <div className="admin-menu">
           <button
-            className={`menu-item ${seccionActiva === 'dashboard' ? 'activo' : ''}`}
+            className={`menu-item ${seccionActiva === 'dashboard' ? 'active' : ''}`}
             onClick={() => setSeccionActiva('dashboard')}
           >
             <span className="menu-icon">
@@ -74,68 +71,62 @@ export const AdminDashboard = () => {
           </button>
 
           <button
-            className={`menu-item ${seccionActiva === 'participantes' ? 'activo' : ''}`}
+            className={`menu-item ${seccionActiva === 'participantes' ? 'active' : ''}`}
             onClick={() => setSeccionActiva('participantes')}
           >
             <span className="menu-icon">
               <Users size={18} />
             </span>
-            <span className="menu-text">Gestión de participantes</span>
+            <span className="menu-text">Participantes</span>
           </button>
 
           <button
-            className={`menu-item ${seccionActiva === 'salas' ? 'activo' : ''}`}
+            className={`menu-item ${seccionActiva === 'salas' ? 'active' : ''}`}
             onClick={() => setSeccionActiva('salas')}
           >
             <span className="menu-icon">
               <Building2 size={18} />
             </span>
-            <span className="menu-text">Gestión de salas</span>
+            <span className="menu-text">Salas</span>
           </button>
 
           <button
-            className={`menu-item ${seccionActiva === 'reservas' ? 'activo' : ''}`}
+            className={`menu-item ${seccionActiva === 'reservas' ? 'active' : ''}`}
             onClick={() => setSeccionActiva('reservas')}
           >
             <span className="menu-icon">
               <CalendarDays size={18} />
             </span>
-            <span className="menu-text">Gestión de reservas</span>
+            <span className="menu-text">Reservas</span>
           </button>
 
           <button
-            className={`menu-item ${seccionActiva === 'sanciones' ? 'activo' : ''}`}
+            className={`menu-item ${seccionActiva === 'sanciones' ? 'active' : ''}`}
             onClick={() => setSeccionActiva('sanciones')}
           >
             <span className="menu-icon">
               <AlertTriangle size={18} />
             </span>
-            <span className="menu-text">Gestión de sanciones</span>
+            <span className="menu-text">Sanciones</span>
           </button>
 
           <button
-            className={`menu-item ${seccionActiva === 'reportes' ? 'activo' : ''}`}
+            className={`menu-item ${seccionActiva === 'reportes' ? 'active' : ''}`}
             onClick={() => setSeccionActiva('reportes')}
           >
             <span className="menu-icon">
               <BarChart3 size={18} />
             </span>
-            <span className="menu-text">Reportes y métricas</span>
+            <span className="menu-text">Reportes</span>
           </button>
         </div>
 
-        <div className="sidebar-footer">
-          <div className="user-card">
-            <p className="user-email">{user?.correo}</p>
-            <p className="user-role">Perfil: Administrador</p>
-          </div>
-          <button onClick={logout} className="logout-button">
-            Cerrar sesión
-          </button>
-        </div>
+        <button onClick={logout} className="logout-button">
+          <LogOut size={18} />
+          <span className="menu-text">Cerrar sesión</span>
+        </button>
       </nav>
 
-      {/* Contenido principal */}
       <main className="admin-content">{renderizarSeccion()}</main>
     </div>
   )

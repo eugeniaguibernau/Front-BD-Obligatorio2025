@@ -1,5 +1,5 @@
 /**
- * Dashboard Personal - Mi perfil y resumen
+ * Dashboard Personal 
  */
 
 import { useEffect, useState } from 'react'
@@ -8,7 +8,7 @@ import reservaService from '../../../services/reservaService'
 import sancionService from '../../../services/sancionService'
 
 export default function DashboardPersonal({ tienesSanciones, setTienesSanciones }) {
-  console.log('🚀 DashboardPersonal renderizado - VERSIÓN NUEVA')
+
   const { user } = useAuth()
   const [reservas, setReservas] = useState([])
   const [sanciones, setSanciones] = useState([])
@@ -16,45 +16,40 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    console.log('⚡ useEffect EJECUTÁNDOSE')
+
     const load = async () => {
       console.log('🔄 Función load() iniciada')
       setLoading(true)
       try {
-        // fetch user's reservas and sanciones (defensive: user may be null)
         const ci = user && (user.ci || user.CI || user.identificacion || user.dni || user.documento || user.id)
-        console.log('👤 Usuario CI:', ci)
+
         const rRes = await reservaService.listarReservas(ci ? { ci } : {})
-        console.log('📋 Respuesta reservas:', rRes)
+
         if (rRes && rRes.ok) setReservas(rRes.data || [])
         else setReservas([])
 
         const emailRaw = look(user, ['email', 'correo'])
-        console.log('📧 Email:', emailRaw)
-        console.log('👤 User completo:', user)
+
         if (ci) {
-          console.log('🔑 Tengo CI, llamando a sancionService con:', ci)
+
           const sRes = await sancionService.listarSanciones(ci)
           console.log('🔍 Respuesta completa de sanciones:', JSON.stringify(sRes, null, 2))
-          console.log('🔍 sRes:', sRes)
-          console.log('🔍 sRes.ok:', sRes.ok)
+
           console.log('🔍 Condición (sRes && sRes.ok):', (sRes && sRes.ok))
           if (sRes && sRes.ok) {
-            console.log('✅ ENTRÉ AL IF')
+
             setSanciones(sRes.data || [])
-            // Guardar el resumen SIEMPRE si existe
             const resumenParaGuardar = sRes.resumen
-            console.log('📦 Resumen a guardar:', resumenParaGuardar)
+
             setResumenSanciones(resumenParaGuardar)
           } else {
-            console.log('❌ NO ENTRÉ AL IF')
+
             setSanciones([])
           }
         } else {
-          console.log('⚠️ NO TENGO CI - usando email')
-          // Try to fetch all sanciones and filter by user email/id when CI is not available
+
           const sRes = await sancionService.listarSanciones()
-          console.log('📋 Respuesta sanciones sin CI:', sRes)
+
           if (sRes && sRes.ok) {
             const all = sRes.data || []
             const userEmail = emailRaw && String(emailRaw).toLowerCase()
@@ -78,10 +73,7 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
         setReservas([])
         setSanciones([])
       } finally {
-        // debug: expose what we fetched so it's easy to inspect in browser console
-        // (remove these logs in production)
-        // eslint-disable-next-line no-console
-        console.debug('DashboardPersonal loaded — user, reservas, sanciones:', user, ' / ', reservas, ' / ', sanciones)
+
         setLoading(false)
       }
     }
@@ -93,7 +85,6 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
 
   const rawName = look(user, ['nombre', 'name', 'nombre_completo', 'nombreCompleto'])
   const emailRaw = look(user, ['email', 'correo'])
-  // prefer explicit name, otherwise use email local-part before the @
   const nombre = rawName || (emailRaw && typeof emailRaw === 'string' ? emailRaw.split('@')[0] : '-')
   const email = emailRaw || '-'
   const ciVal = look(user, ['ci', 'CI', 'identificacion', 'dni', 'documento']) || '-'
@@ -103,7 +94,6 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
   const reservasActivas = (reservas || []).filter(r => ((r.estado || '').toString().toLowerCase() === 'activa')).length
   const reservasCompletadas = (reservas || []).filter(r => {
     const st = (r.estado || '').toString().toLowerCase()
-    // accept multiple possible backend strings for a "completed" reservation
     if (!st) return false
     if (st === 'completada' || st === 'completado') return true
     if (st.includes('asist')) return true // asistida, asistio, asistencia
@@ -115,7 +105,7 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
   const now = new Date()
   const sancionesVigentes = (sanciones || []).filter(s => {
     const ff = s.fecha_fin || s.fechaFin || s.fecha_fin_sancion || null
-    if (!ff) return true // treat missing end as active
+    if (!ff) return true 
     const d = new Date(ff)
     return !isNaN(d.getTime()) && d.getTime() > now.getTime()
   }).length
@@ -126,14 +116,7 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
     ? diasRestantes > 0 
     : sancionesVigentes > 0
 
-  console.log('🔍 DEBUG BANNER:')
-  console.log('  - resumenSanciones:', resumenSanciones)
-  console.log('  - dias_restantes_total:', resumenSanciones?.dias_restantes_total)
-  console.log('  - datos_restantes_total:', resumenSanciones?.datos_restantes_total)
-  console.log('  - diasRestantes calculado:', diasRestantes)
   console.log('  - sancionesVigentes (local):', sancionesVigentes)
-  console.log('  - tieneSancionesVigentes:', tieneSancionesVigentes)
-  console.log('  - loading:', loading)
 
   // Notificar al padre cuando cambie el estado de sanciones
   useEffect(() => {
@@ -146,7 +129,6 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
     <div className="seccion">
       <h1>Mi perfil</h1>
 
-      {/* Banner de sanciones */}
       {!loading && tieneSancionesVigentes && (
         <div className="alert-banner alert-rojo">
           No estás habilitado para generar nuevas reservas debido a sanciones vigentes.
@@ -159,7 +141,6 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
         </div>
       )}
 
-      {/* Información personal */}
       <div className="perfil-card">
         <h2>Información personal</h2>
         <div className="info-grid">
@@ -174,7 +155,6 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
         </div>
       </div>
 
-      {/* Resumen */}
       <div className="resumen-grid">
         <div className="resumen-card">
           <div className="resumen-icon">📅</div>

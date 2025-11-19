@@ -4,7 +4,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000'
 
 const buildHeaders = () => {
 	const headers = { 'Content-Type': 'application/json' }
-	// fallback directly to localStorage in case getToken is not yet available
 	const token = getToken() || (typeof localStorage !== 'undefined' && localStorage.getItem('auth_token'))
 	if (token) headers['Authorization'] = `Bearer ${token}`
 	return headers
@@ -15,7 +14,6 @@ const handleResponse = async (res) => {
 	try {
 		data = await res.json()
 	} catch (e) {
-		// ignore JSON parse errors
 	}
 	if (res.status === 401) {
 		// auto logout on unauthorized (dev-friendly)
@@ -135,8 +133,6 @@ export const listarParticipantesReserva = async (id_reserva) => {
 	}
 }
 
-// Default export moved to the end of the file so all functions (including listarSalas)
-// are initialized before being referenced.
 export const listarSalas = async () => {
 	try {
 		const res = await fetch(`${API_BASE_URL}/salas/`, { headers: buildHeaders() })

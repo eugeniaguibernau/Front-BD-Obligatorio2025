@@ -45,7 +45,6 @@ export default function GestionParticipantes() {
     cargarProgramas()
   }, [])
 
-  // Helpers to map between UI values and backend-expected values
   const uiTipoFromBackend = (backendTipo) => {
     if (!backendTipo) return ''
     const b = backendTipo.toString().toLowerCase()
@@ -58,7 +57,6 @@ export default function GestionParticipantes() {
   const backendTipoFromUi = (uiTipo) => {
     if (!uiTipo) return ''
     const u = uiTipo.toString().toLowerCase()
-    // Map UI values to backend canonical values.
     if (u === 'estudiante') return 'alumno'
     if (u === 'postgrado') return 'postgrado'
     if (u === 'alumno') return 'alumno'
@@ -73,10 +71,10 @@ export default function GestionParticipantes() {
       if (resultado.ok) {
         setProgramas(resultado.data || [])
       } else {
-        console.warn('No se pudieron cargar programas:', resultado.error)
+
       }
     } catch (err) {
-      console.warn('Error al cargar programas:', err)
+
     }
   }
 
@@ -88,7 +86,6 @@ export default function GestionParticipantes() {
     if (p.programas && Array.isArray(p.programas) && p.programas.length > 0) {
       return p.programas[0].programa || null
     }
-    // Legacy fallback
     return p.programa || p.programa_academico || p.programa_id || null
   }
 
@@ -98,7 +95,6 @@ export default function GestionParticipantes() {
     if (p.programas && Array.isArray(p.programas) && p.programas.length > 0) {
       return p.programas[0].tipo || null
     }
-    // Legacy fallback
     return p.tipo_participante || p.tipo || null
   }
 
@@ -112,7 +108,6 @@ export default function GestionParticipantes() {
       return tipos.length > 0 ? tipos.join(', ') : 'No especificado';
     }
     
-    // Legacy fallback: un solo tipo
     const tipoUnico = p.tipo_participante || p.tipo;
     return tipoUnico || 'No especificado';
   }
@@ -127,16 +122,13 @@ export default function GestionParticipantes() {
       return progs.length > 0 ? progs.join(', ') : 'No especificado';
     }
     
-    // Legacy fallback: un solo programa
     const programaUnico = p.programa || p.programa_academico || p.programa_id;
     return programaUnico || 'No especificado';
   }
 
-  // Helper: renderiza todos los pares programa-tipo de forma visual
   const renderProgramasYTipos = (p) => {
     if (!p) return <span>No especificado</span>;
     
-    // Nuevo formato: programas array con múltiples programas/tipos
     if (p.programas && Array.isArray(p.programas) && p.programas.length > 0) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -149,7 +141,6 @@ export default function GestionParticipantes() {
       );
     }
     
-    // Legacy fallback: un solo programa/tipo
     const programaUnico = p.programa || p.programa_academico || p.programa_id || 'No especificado';
     const tipoUnico = p.tipo_participante || p.tipo || 'No especificado';
     return (
@@ -181,11 +172,9 @@ export default function GestionParticipantes() {
     setLoading(true)
     setError('')
     const resultado = await listarParticipantes()
-    
-    console.log('[GestionParticipantes] cargarParticipantes resultado:', resultado)
-    
+
     if (resultado.ok) {
-      console.log('[GestionParticipantes] Total participantes cargados:', resultado.data?.length)
+
       setParticipantes(resultado.data)
     } else {
       setError(resultado.error)
@@ -229,10 +218,8 @@ export default function GestionParticipantes() {
       apellido: participante.apellido,
       email: participante.email,
       // soportar diferentes nombres de campo provenientes del backend
-      // normalize incoming backend tipo into the UI-friendly value
       tipo_participante: uiTipoFromBackend(getTipoPrimario(participante) || 'estudiante'),
       programa_academico: getProgramaPrimario(participante) || '',
-      // Do not populate contraseña when editing for security; email shown for reference
       contraseña: '',
     })
     setParticipanteSeleccionado(participante)
@@ -254,7 +241,6 @@ export default function GestionParticipantes() {
       return;
     }
     
-    // Verificar que no esté duplicado (mismo programa + tipo)
     const duplicado = programasAsignados.find(
       p => p.programa === programaTemporal.programa && p.tipo === programaTemporal.tipo
     );
@@ -307,16 +293,14 @@ export default function GestionParticipantes() {
         const password = formData.contraseña;
 
         const resReg = await registrarUsuarioAdmin({ correo, password, participante: payload });
-        console.log('[GestionParticipantes] registrarUsuarioAdmin resultado:', resReg);
-        
+
         if (!resReg.ok) {
           setError(resReg.error || 'Error al registrar usuario');
           return;
         }
       } else {
         const resultado = await crearParticipante(payload);
-        console.log('[GestionParticipantes] crearParticipante resultado:', resultado);
-        
+
         if (!resultado.ok) {
           setError(resultado.error);
           return;
@@ -325,8 +309,7 @@ export default function GestionParticipantes() {
 
       // Paso 2: Agregar programas adicionales si hay más de uno
       if (programasAsignados.length > 1) {
-        console.log(`[GestionParticipantes] Agregando ${programasAsignados.length - 1} programas adicionales...`);
-        
+
         for (let i = 1; i < programasAsignados.length; i++) {
           const programaAdicional = programasAsignados[i];
           const tipoCapitalizado = programaAdicional.tipo.charAt(0).toUpperCase() + programaAdicional.tipo.slice(1);
@@ -338,9 +321,7 @@ export default function GestionParticipantes() {
             programaAdicional.programa,
             tipoCapitalizado
           );
-          
-          console.log(`[GestionParticipantes] agregarProgramaAParticipante resultado ${i}:`, resAgregar);
-          
+
           if (!resAgregar.ok) {
             setError(`Error al agregar programa ${programaAdicional.programa}: ${resAgregar.error}`);
             // No retornar aquí, mostrar el participante creado aunque falló un programa
@@ -353,7 +334,7 @@ export default function GestionParticipantes() {
       await cargarParticipantes();
       
     } catch (error) {
-      console.error('[GestionParticipantes] Error en handleSubmit crear:', error);
+
       setError(error.message || 'Error inesperado al crear participante');
     }
 
@@ -365,17 +346,11 @@ export default function GestionParticipantes() {
     if (formData.apellido !== participanteSeleccionado.apellido) cambios.apellido = formData.apellido;
     if (formData.email !== participanteSeleccionado.email) cambios.email = formData.email;
 
-    // Compare UI-visible tipos (e.g. 'estudiante'|'postgrado'|'docente') so we
-    // detect when the user changed the select even if multiple UI values map to
-    // the same backend canonical value (e.g. 'postgrado' -> 'alumno').
+   
     const originalUiTipo = uiTipoFromBackend(getTipoPrimario(participanteSeleccionado) || 'estudiante')
     const newUiTipo = formData.tipo_participante
     if (newUiTipo && newUiTipo !== originalUiTipo) {
-      // Send UI-friendly label for tipo_participante (e.g. 'Estudiante') to
-      // match backend expectation.
       cambios.tipo_participante = newUiTipo.charAt(0).toUpperCase() + newUiTipo.slice(1)
-      // Also send a readable `tipo` field (duplicate) for backends that
-      // prefer that key.
       cambios.tipo = newUiTipo.charAt(0).toUpperCase() + newUiTipo.slice(1)
     }
 
@@ -402,9 +377,7 @@ export default function GestionParticipantes() {
   }
 };
 
-
   const handleEliminar = async (ci, nombre) => {
-    // kept for compatibility if called programmatically
     const ok = window.confirm ? window.confirm(`¿Estás seguro de eliminar a ${nombre}? Esto eliminará TODOS sus datos (reservas, sanciones, login, etc.)`) : true
     if (!ok) return
 
@@ -418,7 +391,6 @@ export default function GestionParticipantes() {
     }
   }
 
-  // --- Custom confirm dialog state and helpers (used for nicer UI confirmations) ---
   const [confirmState, setConfirmState] = useState({ visible: false, title: '', message: '', onConfirm: null })
 
   const showConfirm = ({ title, message, onConfirm }) => {
@@ -521,7 +493,6 @@ export default function GestionParticipantes() {
         </table>
       )}
 
-      {/* Modal para Crear/Editar */}
       {mostrarModal && (
         <div className="modal-overlay" onClick={cerrarModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -599,11 +570,9 @@ export default function GestionParticipantes() {
               )}
 
               {modoModal === 'crear' ? (
-                // Modo crear: permite múltiples programas
                 <div className="form-group">
                   <label>Programas y Tipos * (mínimo 1)</label>
                   
-                  {/* Lista de programas asignados */}
                   {programasAsignados.length > 0 && (
                     <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
                       <strong>Programas asignados ({programasAsignados.length}):</strong>
@@ -624,7 +593,6 @@ export default function GestionParticipantes() {
                     </div>
                   )}
 
-                  {/* Selector para agregar nuevo programa */}
                   <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
                     <div style={{ flex: 2 }}>
                       <label htmlFor="programa_temp">Programa</label>
@@ -686,7 +654,6 @@ export default function GestionParticipantes() {
                   </div>
                 </div>
               ) : (
-                // Modo editar: un solo programa (comportamiento original)
                 <>
                   <div className="form-group">
                     <label htmlFor="tipo_participante">Tipo de participante *</label>
@@ -752,7 +719,6 @@ export default function GestionParticipantes() {
         </div>
       )}
 
-      {/* Custom confirm dialog (styled like modal) */}
       {confirmState.visible && (
         <div className="modal-overlay" onClick={hideConfirm}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -763,7 +729,6 @@ export default function GestionParticipantes() {
               <button
                 className="btn-primary"
                 onClick={() => {
-                  // execute the provided onConfirm callback and close
                   try {
                     confirmState.onConfirm && confirmState.onConfirm()
                   } finally {

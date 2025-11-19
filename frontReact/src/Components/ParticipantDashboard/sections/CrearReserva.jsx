@@ -11,7 +11,7 @@ export default function CrearReserva({ tienesSanciones }) {
   const { user } = useAuth()
   const [userCI, setUserCI] = useState(null)
   const [salas, setSalas] = useState([])
-  // keep selected sala as index to access both nombre and edificio
+
   const [selectedSalaIndex, setSelectedSalaIndex] = useState('')
   const [fecha, setFecha] = useState('')
   const [turnos, setTurnos] = useState([])
@@ -30,11 +30,10 @@ export default function CrearReserva({ tienesSanciones }) {
       try {
         const email = user?.correo || user?.email
         if (!email) {
-          console.log('[CrearReserva] No se encontró email del usuario')
+
           return
         }
-        
-        console.log('[CrearReserva] Buscando participante con email:', email)
+
         const res = await listarParticipantes()
         
         if (res.ok && res.data) {
@@ -44,14 +43,14 @@ export default function CrearReserva({ tienesSanciones }) {
           })
           
           if (participante && participante.ci) {
-            console.log('[CrearReserva] CI encontrada:', participante.ci)
+
             setUserCI(participante.ci)
           } else {
-            console.log('[CrearReserva] No se encontró participante con ese email')
+
           }
         }
       } catch (error) {
-        console.error('[CrearReserva] Error cargando CI del usuario:', error)
+
       }
     }
     
@@ -62,7 +61,6 @@ export default function CrearReserva({ tienesSanciones }) {
     const loadSalas = async () => {
       const res = await reservaService.listarSalas()
       if (!res.ok) {
-        // if unauthorized the service already handles logout; show error
         setError(res.error || 'No se pudieron cargar las salas')
         return
       }
@@ -71,7 +69,7 @@ export default function CrearReserva({ tienesSanciones }) {
     loadSalas()
   }, [])
 
-  // check sanciones for this user and block if within 2 months
+  
   useEffect(() => {
     const checkSanciones = async () => {
       try {
@@ -82,7 +80,7 @@ export default function CrearReserva({ tienesSanciones }) {
         const data = Array.isArray(res.data) ? res.data : (res.data && res.data.sanciones) || []
         if (!data || data.length === 0) return
         const now = new Date()
-        // find any sanction that still blocks: either fecha_fin in future OR fecha_inicio within last 2 months
+  
         const blocked = data.some(s => {
           const inicio = s.fecha_inicio || s.fechaInicio || s.fecha || null
           const fin = s.fecha_fin || s.fechaFin || null
@@ -98,7 +96,6 @@ export default function CrearReserva({ tienesSanciones }) {
         })
         if (blocked) {
           setBloqueadoPorSancion(true)
-          // compute nearest release date for messaging
           const releaseDates = data.map(s => {
             const inicio = s.fecha_inicio || s.fechaInicio || s.fecha || null
             const fin = s.fecha_fin || s.fechaFin || null
@@ -117,7 +114,6 @@ export default function CrearReserva({ tienesSanciones }) {
           setDetalleSancion(finalRelease ? `No puedes reservar hasta el ${finalRelease.toLocaleDateString()}` : 'Tienes sanciones vigentes')
         }
       } catch (e) {
-        // ignore check errors
       }
     }
     checkSanciones()
@@ -125,7 +121,6 @@ export default function CrearReserva({ tienesSanciones }) {
   }, [user])
 
   useEffect(() => {
-    // load turnos when both fecha and sala are selected
     const loadTurnos = async () => {
       setTurnos([])
       setSelectedTurnosIds([])
@@ -193,19 +188,16 @@ export default function CrearReserva({ tienesSanciones }) {
       .filter(Boolean)
       .map(s => (isNaN(Number(s)) ? s : Number(s)))
 
-    console.log('[CrearReserva] Validando participantes:', participantes)
-
-    // 🔒 VALIDACIÓN 1: Debe haber al menos un participante
+    // VALIDACIÓN 1: Debe haber al menos un participante
     if (participantes.length === 0) {
       setError('Debes agregar al menos un participante (tu cédula)')
       setLoading(false)
       return
     }
 
-    // 🔒 VALIDACIÓN 2: El usuario DEBE incluirse a sí mismo en la lista de participantes
+    // VALIDACIÓN 2: El usuario DEBE incluirse a sí mismo en la lista de participantes
     console.log('[CrearReserva] CI del usuario logueado (userCI):', userCI)
-    console.log('[CrearReserva] Usuario completo:', user)
-    
+
     if (!userCI) {
       setError('Debes incluir tu cédula de identidad en la lista de participantes')
       setLoading(false)
@@ -218,9 +210,7 @@ export default function CrearReserva({ tienesSanciones }) {
       console.log('[CrearReserva] Comparando:', pNum, '===', userCINumber, '?', !isNaN(pNum) && pNum === userCINumber)
       return !isNaN(pNum) && pNum === userCINumber
     })
-    
-    console.log('[CrearReserva] Usuario incluido en lista:', incluidoEnLista)
-    
+
     if (!incluidoEnLista) {
       setError(`❌ Debes incluir tu propia cédula (${userCI}) en la lista de participantes. No puedes crear reservas únicamente para otros.`)
       setLoading(false)
@@ -234,7 +224,6 @@ export default function CrearReserva({ tienesSanciones }) {
       return
     }
 
-    // Build payload usando nombre_sala, edificio y múltiples turnos
     let payload = {
       fecha: fecha,
       participantes,
@@ -269,22 +258,17 @@ export default function CrearReserva({ tienesSanciones }) {
     const res = await reservaService.crearReserva(payload)
     setLoading(false)
     if (!res.ok) {
-      // show backend message when available
       const backendMsg = res.error || (res.data && (res.data.error || res.data.mensaje)) || 'Error creando reserva'
       setError(backendMsg)
-      console.error('Crear reserva error response:', res)
 
-      // if backend message mentions sancion(es) o bloqueo, prioritize that message and DO NOT show the "invalid participants" box
       const isSancionMsg = /sanci[oó]n|sanciones|no puede reservar|no puede crear reservas|tiene sanciones vigentes|bloquead/i.test(backendMsg)
 
-      // try to extract invalid participant CI from the backend message when it's NOT a sancion message
       if (!isSancionMsg) {
         const m = /participante\s+(\d{6,})/i.exec(backendMsg)
         if (m && m[1]) {
           setInvalidParticipants([m[1]])
         }
       } else {
-        // clear invalid participants to avoid showing the extra alert in sancion cases
         setInvalidParticipants([])
       }
       return
@@ -302,7 +286,6 @@ export default function CrearReserva({ tienesSanciones }) {
     setError(null)
     setMensaje(null)
 
-    // Build participantes array removing invalid ones
     const participantes = participantesText
       .split(',')
       .map(s => s.trim())
@@ -322,7 +305,6 @@ export default function CrearReserva({ tienesSanciones }) {
       return partes.map(p => p.padStart(2, '0')).join(':')
     }
 
-    // Agregar turnos
     if (selectedTurnosIds.length > 0) {
       payload.turnos = selectedTurnosIds.map(idTurno => {
         const turno = turnos.find(t => t.id_turno === Number(idTurno))
@@ -346,7 +328,7 @@ export default function CrearReserva({ tienesSanciones }) {
     if (!res.ok) {
       const backendMsg = res.error || (res.data && (res.data.error || res.data.mensaje)) || 'Error creando reserva'
       setError(backendMsg)
-      console.error('Retry Crear reserva error response:', res)
+
       const isSancionMsg = /sanci[oó]n|sanciones|no puede reservar|no puede crear reservas|tiene sanciones vigentes|bloquead/i.test(backendMsg)
       if (!isSancionMsg) {
         const m = /participante\s+(\d{6,})/i.exec(backendMsg)

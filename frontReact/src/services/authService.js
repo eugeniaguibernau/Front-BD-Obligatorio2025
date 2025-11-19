@@ -75,7 +75,7 @@ const decodeJWT = (token) => {
     );
     return JSON.parse(jsonPayload);
   } catch (error) {
-    console.error('Error decodificando JWT:', error);
+
     return null;
   }
 };

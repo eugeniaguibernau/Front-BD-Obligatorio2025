@@ -1,35 +1,7 @@
+import { getAuthHeaders as getHeaders, buildQueryString } from './apiUtils';
+import { logout } from './authService';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-/**
- * Obtener el token JWT del localStorage
- */
-function getToken() {
-  return localStorage.getItem('auth_token');
-}
-
-/**
- * Headers comunes para todas las peticiones
- */
-function getHeaders() {
-  const token = getToken();
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-}
-
-/**
- * Helper para construir query params
- */
-function buildQueryString(params) {
-  const queryParams = new URLSearchParams();
-  Object.keys(params).forEach(key => {
-    if (params[key] !== null && params[key] !== undefined && params[key] !== '') {
-      queryParams.append(key, params[key]);
-    }
-  });
-  return queryParams.toString();
-}
 
 /**
  * 1. Salas Más Reservadas
@@ -57,7 +29,7 @@ async function getSalasMasReservadas(startDate, endDate, limit = 10) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getSalasMasReservadas:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -86,7 +58,7 @@ async function getTurnosMasDemandados(startDate, endDate, limit = 5) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getTurnosMasDemandados:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -115,7 +87,7 @@ async function getPromedioParticipantesPorSala(startDate, endDate, edificio = nu
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getPromedioParticipantesPorSala:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -144,7 +116,7 @@ async function getReservasPorPrograma(startDate, endDate, facultad = null) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getReservasPorPrograma:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -173,7 +145,7 @@ async function getOcupacionPorEdificio(startDate, endDate) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getOcupacionPorEdificio:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -202,7 +174,7 @@ async function getReservasYAsistenciaPorRol(startDate, endDate, rol = null) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getReservasYAsistenciaPorRol:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -230,7 +202,7 @@ async function getSancionesPorRol(startDate, endDate, rol = null) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getSancionesPorRol:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -258,7 +230,7 @@ async function getReservasUtilizadasVsCanceladas(startDate, endDate) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getReservasUtilizadasVsCanceladas:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -286,7 +258,7 @@ async function getHorasPicoPorSala(startDate, endDate, edificio = null, limit = 
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getHorasPicoPorSala:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -314,7 +286,7 @@ async function getOcupacionPorTipoSala(startDate, endDate) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getOcupacionPorTipoSala:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -342,7 +314,7 @@ async function getReincidentesEnSanciones(minSanciones = 2, onlyActive = true) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en getReincidentesEnSanciones:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }

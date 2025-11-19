@@ -23,10 +23,8 @@ export const AuthProvider = ({ children }) => {
     setLoading(false);
   }, []);
 
-  // Listen to global logout events (dispatched from authService.logout)
   useEffect(() => {
     const onGlobalLogout = () => {
-      // clear local state so the UI shows Login
       setUser(null)
       setToken(null)
       setError(null)
