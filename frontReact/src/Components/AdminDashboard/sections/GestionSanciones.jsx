@@ -45,15 +45,13 @@ export default function GestionSanciones() {
     );
     setLoading(false);
 
-    console.log('Resultado de listarSanciones:', resultado);
-
     if (resultado.unauthorized) {
       setError('No autorizado. Por favor, inicie sesión nuevamente.');
       return;
     }
 
     if (resultado.ok) {
-      console.log('Sanciones recibidas:', resultado.data);
+
       setSanciones(resultado.data);
     } else {
       setError(resultado.error || 'Error al cargar sanciones');
@@ -114,8 +112,6 @@ export default function GestionSanciones() {
       fecha_fin: fin
     };
 
-    console.log('➡️ Enviando crear sancion payload:', payloadToSend);
-
     const resultado = await sancionService.crearSancion(payloadToSend);
     setLoading(false);
 
@@ -138,8 +134,6 @@ export default function GestionSanciones() {
   const handleEliminar = async () => {
     if (!sancionAEliminar) return;
 
-    console.log('🗑️ Intentando eliminar sanción:', sancionAEliminar);
-    
     // Convertir fechas al formato YYYY-MM-DD que espera el backend
     const formatearFecha = (fecha) => {
       if (!fecha) return null;
@@ -155,12 +149,6 @@ export default function GestionSanciones() {
     const fechaInicioFormateada = formatearFecha(sancionAEliminar.fecha_inicio);
     const fechaFinFormateada = formatearFecha(sancionAEliminar.fecha_fin);
 
-    console.log('  - CI:', sancionAEliminar.ci_participante);
-    console.log('  - Fecha inicio original:', sancionAEliminar.fecha_inicio);
-    console.log('  - Fecha inicio formateada:', fechaInicioFormateada);
-    console.log('  - Fecha fin original:', sancionAEliminar.fecha_fin);
-    console.log('  - Fecha fin formateada:', fechaFinFormateada);
-
     setLoading(true);
     setError(null);
     setSuccess(null);
@@ -170,9 +158,7 @@ export default function GestionSanciones() {
       fechaInicioFormateada,
       fechaFinFormateada
     );
-    
-    console.log('📋 Resultado eliminación:', resultado);
-    
+
     setLoading(false);
 
     if (resultado.unauthorized) {
@@ -227,7 +213,7 @@ export default function GestionSanciones() {
       const year = d.getUTCFullYear();
       return `${day}/${month}/${year}`;
     } catch (error) {
-      console.error('Error formateando fecha:', error);
+
       return '-';
     }
   };
@@ -353,7 +339,7 @@ export default function GestionSanciones() {
       let resultado;
 
       if (posibleId) {
-        console.log('🔁 Actualizando sanción por ID:', posibleId, '->', inicioStr, finStr);
+
         resultado = await sancionService.actualizarSancionPorId(posibleId, inicioStr, finStr);
       } else {
         console.log('🔁 Actualizando sanción por claves (fallback delete+create):', sancion.ci_participante, origenInicio, origenFin, '->', inicioStr, finStr);
@@ -451,7 +437,7 @@ export default function GestionSanciones() {
         <div className="loading">Cargando...</div>
       ) : (
         <div className="tabla-container">
-          <table className="tabla-sanciones">
+          <table className="tabla-admin">
             <thead>
               <tr>
                   <th>CI Participante</th>

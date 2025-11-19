@@ -1,5 +1,5 @@
 /**
- * Componente de Login (versión institucional UCU)
+ * Componente de Login 
  */
 
 import { useState } from 'react';

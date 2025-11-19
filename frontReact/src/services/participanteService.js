@@ -3,25 +3,9 @@
  * Maneja la comunicación con el backend para gestión de participantes
  */
 
+import { getAuthHeaders } from './apiUtils';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-/**
- * Obtiene el token almacenado
- */
-const getToken = () => {
-  return localStorage.getItem('auth_token');
-};
-
-/**
- * Headers comunes para peticiones autenticadas
- */
-const getAuthHeaders = () => {
-  const token = getToken();
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-};
 
 /**
  * Lista todos los participantes
@@ -135,7 +119,7 @@ export const listarProgramas = async () => {
       response = await fetch(url, { method: 'GET' })
     } catch (err) {
       // Si falla la llamada simple (p. ej. la API requiere auth o bloquea conexiones), reintentamos con auth
-      console.warn('listarProgramas: simple fetch failed, retrying with auth headers', err)
+
       response = await fetch(url, {
         method: 'GET',
         headers: getAuthHeaders(),
@@ -295,29 +279,22 @@ export const actualizarParticipante = async (ci, datos) => {
       // no borrar las variantes, backend debería aceptar 'programa'
     }
 
-    // --- Debugging / normalization helper ---
-    // Log payload so developer can inspect what is being enviado al backend
+   
     try {
-      console.log(`[participanteService] actualizarParticipante payload for CI ${ci}:`, payloadDatos)
+
     } catch (e) {
-      // ignore console errors in non-browser environments
     }
 
-    // Normalize `tipo` for better compatibility with backends that expect
-    // capitalized values (e.g. 'Estudiante' / 'Docente') while still
-    // keeping `tipo_participante` as the canonical internal key.
     if (payloadDatos.tipo_participante) {
       const t = payloadDatos.tipo_participante.toString()
-      // backend sometimes expects 'alumno' while the UI uses 'estudiante'
+
       if (t.toLowerCase() === 'alumno') {
         payloadDatos.tipo = 'Estudiante'
         payloadDatos.tipo_participante = 'alumno'
       } else {
-        // Capitalize the UI value for the `tipo` field (e.g. 'docente' -> 'Docente')
         payloadDatos.tipo = t.charAt(0).toUpperCase() + t.slice(1)
       }
     } else if (payloadDatos.tipo) {
-      // ensure tipo is a string and capitalized
       const tt = payloadDatos.tipo.toString()
       payloadDatos.tipo = tt.charAt(0).toUpperCase() + tt.slice(1)
     }

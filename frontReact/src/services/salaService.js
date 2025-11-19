@@ -3,25 +3,9 @@
  * Maneja la comunicación con el backend para gestión de salas
  */
 
+import { getAuthHeaders } from './apiUtils';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-/**
- * Obtiene el token almacenado
- */
-const getToken = () => {
-  return localStorage.getItem('auth_token');
-};
-
-/**
- * Headers comunes para peticiones autenticadas
- */
-const getAuthHeaders = () => {
-  const token = getToken();
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-  };
-};
 
 /**
  * Tipos de sala válidos
@@ -54,13 +38,11 @@ export const listarSalas = async (edificio = null, tipo_sala = null, min_capacid
       credentials: 'include',
     });
 
-    // Try to parse JSON, but fall back to raw text when server returns an HTML/error page
     let data = null;
     let textBody = null;
     try {
       data = await response.json();
     } catch (jsonErr) {
-      // Not JSON (e.g. 500 page), try to capture text for debugging
       try {
         textBody = await response.text();
       } catch (e) {
@@ -73,8 +55,7 @@ export const listarSalas = async (edificio = null, tipo_sala = null, min_capacid
     }
 
     if (!response.ok) {
-      // Log detailed info to help debugging (visible in browser console)
-      console.error('[salaService] listarSalas error', { url, status: response.status, json: data, text: textBody });
+
       const errMsg = (data && (data.error || data.mensaje)) || textBody || 'Error al listar salas';
       return {
         ok: false,

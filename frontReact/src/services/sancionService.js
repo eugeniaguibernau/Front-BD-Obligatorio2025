@@ -1,22 +1,7 @@
+import { getAuthHeaders as getHeaders } from './apiUtils';
+import { logout } from './authService';
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-
-/**
- * Obtener el token JWT del localStorage
- */
-function getToken() {
-  return localStorage.getItem('auth_token');
-}
-
-/**
- * Headers comunes para todas las peticiones
- */
-function getHeaders() {
-  const token = getToken();
-  return {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
-  };
-}
 
 /**
  * Listar sanciones
@@ -31,9 +16,7 @@ async function listarSanciones(ci = null, activas = false) {
 
     const queryString = params.toString();
     const url = `${API_URL}/sanciones${queryString ? `?${queryString}` : ''}`;
-    
-    console.log('Llamando a:', url);
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: getHeaders()
@@ -45,28 +28,27 @@ async function listarSanciones(ci = null, activas = false) {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error('Error del servidor:', errorData);
+
       return { ok: false, error: errorData.error || 'Error al listar sanciones' };
     }
 
     const data = await response.json();
-    console.log('📥 Respuesta del servidor:', data);
-    
+
     // Extraer resumen PRIMERO - puede venir en data.resumen o directamente en data
     let resumen = null;
     if (data.resumen) {
-      console.log('✅ Encontré data.resumen');
+
       resumen = data.resumen;
     } else if (data.total_sanciones !== undefined) {
-      console.log('✅ Construyendo resumen desde data directa');
+
       resumen = {
         total_sanciones: data.total_sanciones,
         total_dias_sancionados: data.total_dias_sancionados,
         datos_restantes_total: data.datos_restantes_total
       };
-      console.log('📊 Resumen construido:', resumen);
+
     } else {
-      console.log('❌ No hay total_sanciones en data');
+
     }
     
     // Extraer sanciones - puede venir en data.sanciones o directamente
@@ -85,10 +67,10 @@ async function listarSanciones(ci = null, activas = false) {
       data: Array.isArray(sanciones) ? sanciones : [],
       resumen: resumen
     };
-    console.log('🎁 Retornando:', resultado);
+
     return resultado;
   } catch (error) {
-    console.error('Error en listarSanciones:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -120,7 +102,7 @@ async function crearSancion(sancionData) {
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en crearSancion:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -138,16 +120,12 @@ async function eliminarSancion(ci_participante, fecha_inicio, fecha_fin) {
       fecha_inicio,
       fecha_fin
     };
-    
-    console.log('🔥 Enviando DELETE con payload:', payload);
-    
+
     const response = await fetch(`${API_URL}/sanciones/`, {
       method: 'DELETE',
       headers: getHeaders(),
       body: JSON.stringify(payload)
     });
-
-    console.log('📡 Respuesta del servidor:', response.status, response.statusText);
 
     if (response.status === 401) {
       try { logout() } catch (e) { /* ignore */ }
@@ -156,20 +134,20 @@ async function eliminarSancion(ci_participante, fecha_inicio, fecha_fin) {
 
     if (response.status === 404) {
       const errorData = await response.json();
-      console.log('❌ Error 404:', errorData);
+
       return { ok: false, error: 'Sanción no encontrada' };
     }
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.log('❌ Error:', errorData);
+
       return { ok: false, error: errorData.error || 'Error al eliminar sanción' };
     }
 
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en eliminarSancion:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -203,7 +181,7 @@ async function actualizarSancion(ci_participante, fecha_inicio_actual, fecha_fin
     if (!createRes.ok) return { ok: false, error: createRes.error || 'No se pudo crear la sanción actualizada' }
     return { ok: true, data: createRes.data }
   } catch (error) {
-    console.error('Error en actualizarSancion:', error)
+
     return { ok: false, error: 'Error de conexión' }
   }
 }
@@ -251,7 +229,7 @@ async function actualizarSancionPorId(idSancion, fecha_inicio_nueva, fecha_fin_n
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-    console.error('Error en actualizarSancionPorId:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -286,7 +264,7 @@ async function aplicarSancionesPorReserva(idReserva, sancionDias = 60) {
     const data = await response.json();
     return { ok: true, data: data.resultado };
   } catch (error) {
-    console.error('Error en aplicarSancionesPorReserva:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -315,7 +293,7 @@ async function procesarReservasVencidas(sancionDias = 60) {
     const data = await response.json();
     return { ok: true, data: data.resultado };
   } catch (error) {
-    console.error('Error en procesarReservasVencidas:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }
@@ -344,7 +322,7 @@ async function extenderSanciones(minDias = 60) {
     const data = await response.json();
     return { ok: true, data: data.resultado };
   } catch (error) {
-    console.error('Error en extenderSanciones:', error);
+
     return { ok: false, error: 'Error de conexión' };
   }
 }

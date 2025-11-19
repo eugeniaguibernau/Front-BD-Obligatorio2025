@@ -7,6 +7,7 @@ import DashboardPersonal from './sections/DashboardPersonal'
 import MisReservas from './sections/MisReservas'
 import CrearReserva from './sections/CrearReserva'
 import MisSanciones from './sections/MisSanciones'
+import { Home, Calendar, PlusCircle, AlertTriangle, LogOut } from 'lucide-react'
 
 export const ParticipantDashboard = () => {
   const { user, logout } = useAuth()
@@ -59,6 +60,7 @@ export const ParticipantDashboard = () => {
             className={`menu-item ${seccionActiva === 'dashboard' ? 'activo' : ''}`}
             onClick={() => setSeccionActiva('dashboard')}
           >
+            <Home className="menu-icon" size={20} />
             <span className="menu-text">Inicio</span>
           </button>
 
@@ -66,6 +68,7 @@ export const ParticipantDashboard = () => {
             className={`menu-item ${seccionActiva === 'reservas' ? 'activo' : ''}`}
             onClick={() => setSeccionActiva('reservas')}
           >
+            <Calendar className="menu-icon" size={20} />
             <span className="menu-text">Mis reservas</span>
           </button>
 
@@ -73,6 +76,7 @@ export const ParticipantDashboard = () => {
             className={`menu-item ${seccionActiva === 'crear' ? 'activo' : ''}`}
             onClick={() => setSeccionActiva('crear')}
           >
+            <PlusCircle className="menu-icon" size={20} />
             <span className="menu-text">Nueva reserva</span>
           </button>
 
@@ -80,6 +84,7 @@ export const ParticipantDashboard = () => {
             className={`menu-item ${seccionActiva === 'sanciones' ? 'activo' : ''}`}
             onClick={() => setSeccionActiva('sanciones')}
           >
+            <AlertTriangle className="menu-icon" size={20} />
             <span className="menu-text">Historial de sanciones</span>
           </button>
         </div>
@@ -90,7 +95,8 @@ export const ParticipantDashboard = () => {
             <p className="user-role">Perfil: Participante</p>
           </div>
           <button onClick={logout} className="logout-button">
-            Cerrar sesión
+            <LogOut size={18} />
+            <span className="menu-text">Cerrar sesión</span>
           </button>
         </div>
       </nav>

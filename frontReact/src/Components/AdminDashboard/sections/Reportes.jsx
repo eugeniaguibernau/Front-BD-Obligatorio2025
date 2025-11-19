@@ -205,7 +205,7 @@ export default function Reportes() {
       setDatos(datosExtraidos)
     } catch (err) {
       setError('Error inesperado al generar reporte')
-      console.error(err)
+
     }
 
     setLoading(false)
@@ -246,7 +246,7 @@ export default function Reportes() {
               // eliminar duplicados y ordenar
               const unique = Array.from(new Set(names)).sort()
               setFacultades(unique)
-              console.info('Reportes: facultades cargadas desde', p, unique)
+
               return
             }
           } catch (e) {
@@ -256,7 +256,7 @@ export default function Reportes() {
         }
         // si llegamos acá, no se encontraron facultades en endpoints
       } catch (e) {
-        console.warn('Error cargando facultades desde API:', e)
+
       }
     }
 
@@ -319,14 +319,14 @@ export default function Reportes() {
           setFacultades(facs)
           if (facs.length === 0) {
             // helpful dev log if no faculties found (can remove later)
-            console.info('Reportes: no se encontraron propiedades de facultad en salas. Keys inspeccionadas:', facKeys)
+
           }
         } else {
           setEdificios([])
           setFacultades([])
         }
       } catch (err) {
-        console.warn('No se pudieron cargar edificios:', err)
+
         setEdificios([])
       }
     }
@@ -528,16 +528,16 @@ export default function Reportes() {
     }
   }
 
-  if (reporteActivo) {
+  const renderReporteActivo = () => {
     const reporte = reportes.find(r => r.id === reporteActivo)
     
     return (
-      <div className="seccion">
-        <button onClick={cerrarReporte} className="btn-secundario" style={{ marginBottom: '20px' }}>
+      <div className="reporte-detalle">
+        <button onClick={cerrarReporte} className="btn-secondary" style={{ marginBottom: '20px' }}>
           ← Volver a Reportes
         </button>
 
-        <h1>{reporte.icono} {reporte.nombre}</h1>
+        <h2>{reporte.icono} {reporte.nombre}</h2>
         <p style={{ color: '#666', marginTop: '0.5rem' }}>{reporte.descripcion}</p>
 
         {renderFiltros(reporte)}
@@ -545,7 +545,7 @@ export default function Reportes() {
         <div style={{ marginTop: '20px' }}>
           <button 
             onClick={() => generarReporte(reporteActivo)} 
-            className="btn-primario"
+            className="btn-primary"
             disabled={loading}
             style={{ 
               padding: '12px 24px',
@@ -597,20 +597,34 @@ export default function Reportes() {
   }
 
   return (
-    <div className="seccion">
-      <h1>Reportes & Métricas</h1>
-      <p>Accede a 11 reportes completos del sistema</p>
-
-      <div className="reportes-grid">
-        {reportes.map((reporte) => (
-          <div key={reporte.id} className="reporte-card" onClick={() => setReporteActivo(reporte.id)}>
-            <div className="reporte-icon">{reporte.icono}</div>
-            <h3>{reporte.nombre}</h3>
-            <p className="reporte-desc">{reporte.descripcion}</p>
-            <button className="btn-secundario">Ver Reporte</button>
-          </div>
-        ))}
+    <div className="seccion reportes-seccion">
+      <div className="reportes-header">
+        <h2>Reportes & Métricas</h2>
+        <p className="reportes-subtitle">Accede a 11 reportes completos del sistema</p>
       </div>
+
+      {!reporteActivo ? (
+        <div className="reportes-grid">
+          {reportes.map((reporte) => (
+            <div 
+              key={reporte.id} 
+              className="reporte-card" 
+              onClick={() => setReporteActivo(reporte.id)}
+            >
+              <div className="reporte-icon-wrapper">
+                <span className="reporte-icon">{reporte.icono}</span>
+              </div>
+              <h3 className="reporte-titulo">{reporte.nombre}</h3>
+              <p className="reporte-descripcion">{reporte.descripcion}</p>
+              <button className="btn-ver-reporte">
+                Ver Reporte →
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        renderReporteActivo()
+      )}
     </div>
   )
 }

@@ -1,5 +1,5 @@
 /**
- * Gestión de Reservas - ABM Completo
+ * Gestión de Reservas 
  */
 import { useEffect, useState } from 'react'
 import reservaService from '../../../services/reservaService'
@@ -131,7 +131,6 @@ export default function GestionReservas() {
     e.preventDefault()
     setMessage(null)
 
-    // If user selected 'asistida', try to mark all participants as present first
     if ((nuevoEstado || '').toString().toLowerCase() === 'asistida') {
       try {
         // obtener participantes
@@ -145,13 +144,12 @@ export default function GestionReservas() {
               // eslint-disable-next-line no-await-in-loop
               await reservaService.marcarAsistencia(reservaSeleccionada.id_reserva, ci, true)
             } catch (e) {
-              // ignorar errores individuales pero loguear
-              console.warn('No se pudo marcar asistencia para participante', p, e)
+
             }
           }
         }
       } catch (e) {
-        console.warn('Error marcando asistencia antes de actualizar estado a asistida', e)
+
       }
     }
 
@@ -169,7 +167,6 @@ export default function GestionReservas() {
       return
     }
 
-    // Preferir mostrar el estado que el backend aplicó (estado_aplicado)
     const estadoAplicado = res.data && (res.data.estado_aplicado || res.data.estado_aplicado_en_backend || null)
     if (estadoAplicado) {
       setMessage(`Estado actualizado correctamente: ${estadoAplicado}`)
@@ -181,7 +178,6 @@ export default function GestionReservas() {
       setMessage(prev => `${prev} Sanciones aplicadas: ${res.data.sanciones.aplicadas}`)
     }
 
-    // cerrar modal y refrescar lista para mostrar el estado real del servidor
     cerrarModalEstado()
     fetchReservas()
   }
@@ -336,7 +332,6 @@ export default function GestionReservas() {
       fechaFormateada = `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
     }
     
-    // Construir array de turnos con objetos completos {id_turno, hora_inicio, hora_fin}
     const turnosPayload = formCrear.turnos_seleccionados.map(idTurno => {
       const turno = turnos.find(t => t.id_turno === idTurno)
       
@@ -397,7 +392,6 @@ export default function GestionReservas() {
       <h1>Gestión de Reservas</h1>
       <p>Consultá, actualizá y administrá las reservas registradas en el sistema.</p>
 
-      {/* Controles de búsqueda y filtros */}
       <div className="controles">
         <button onClick={abrirModalCrear} className="btn-primary">
           + Nueva Reserva
@@ -429,7 +423,6 @@ export default function GestionReservas() {
         </button>
       </div>
 
-      {/* Mensajes */}
       {loading && <p>Cargando reservas...</p>}
       {error && <div className="alert-banner alert-rojo">{error}</div>}
       {message && (
@@ -438,7 +431,6 @@ export default function GestionReservas() {
         </div>
       )}
 
-      {/* Tabla de reservas */}
       <table className="tabla-admin">
         <thead>
           <tr>
@@ -467,7 +459,6 @@ export default function GestionReservas() {
                     Cambiar Estado
                   </button>
                   
-                  {/* Botón de asistencia solo si el turno ya pasó y está activa/finalizada */}
                   {puedeMarcarAsistencia(reserva) && (
                     <button
                       onClick={() => abrirModalAsistencia(reserva)}
@@ -497,7 +488,6 @@ export default function GestionReservas() {
         </tbody>
       </table>
 
-      {/* Modal: Actualizar Estado */}
       {showModalEstado && (
         <div className="modal-overlay" onClick={cerrarModalEstado}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -548,7 +538,6 @@ export default function GestionReservas() {
         </div>
       )}
 
-      {/* Modal: Registrar Asistencia */}
       {showModalAsistencia && (
         <div className="modal-overlay" onClick={cerrarModalAsistencia}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
@@ -626,13 +615,11 @@ export default function GestionReservas() {
         </div>
       )}
 
-      {/* Modal: Crear Nueva Reserva */}
       {showModalCrear && (
         <div className="modal-overlay" onClick={() => setShowModalCrear(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px' }}>
             <h3>Nueva Reserva</h3>
             <form onSubmit={handleCrearReserva}>
-              {/* Fecha */}
               <div className="form-group">
                 <label>Fecha *</label>
                 <input
@@ -645,7 +632,6 @@ export default function GestionReservas() {
                 />
               </div>
 
-              {/* Seleccionar Sala */}
               <div className="form-group">
                 <label>Sala *</label>
                 {loadingSalas ? (
@@ -681,7 +667,6 @@ export default function GestionReservas() {
                 )}
               </div>
 
-              {/* Seleccionar Turnos */}
               <div className="form-group">
                 <label>Turnos (seleccione 1 o 2 consecutivos) *</label>
                 {loadingTurnos ? (
@@ -745,7 +730,6 @@ export default function GestionReservas() {
                 )}
               </div>
 
-              {/* Participantes (CIs) */}
               <div className="form-group">
                 <label>Participantes (CI) *</label>
                 {formCrear.participantes.map((ci, index) => (

@@ -1,5 +1,5 @@
 /**
- * Gestión de Salas - ABM completo
+ * Gestión de Salas 
  */
 
 import { useState, useEffect } from 'react'
@@ -19,7 +19,7 @@ export default function GestionSalas() {
   const [busqueda, setBusqueda] = useState('')
   const [filtroEdificio, setFiltroEdificio] = useState('')
   const [mostrarModal, setMostrarModal] = useState(false)
-  const [modoModal, setModoModal] = useState('crear') // 'crear' o 'editar'
+  const [modoModal, setModoModal] = useState('crear')
   const [salaSeleccionada, setSalaSeleccionada] = useState(null)
   const [formData, setFormData] = useState({
     nombre_sala: '',
@@ -259,7 +259,6 @@ export default function GestionSalas() {
         </table>
       )}
 
-      {/* Modal para Crear/Editar */}
       {mostrarModal && (
         <div className="modal-overlay" onClick={cerrarModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
