@@ -668,7 +668,7 @@ export default function GestionReservas() {
               </div>
 
               <div className="form-group">
-                <label>Turnos (seleccione 1 o 2 consecutivos) *</label>
+                <label>Turnos (seleccione 1 o 2 turnos) *</label>
                 {loadingTurnos ? (
                   <p>Cargando turnos...</p>
                 ) : formCrear.nombre_sala ? (
