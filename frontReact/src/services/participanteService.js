@@ -72,6 +72,10 @@ export const registrarUsuarioAdmin = async ({ correo, password, participante }) 
       participante: participante || {},
     };
 
+    console.log('🔐 [registrarUsuarioAdmin] Payload COMPLETO a /api/auth/register:');
+    console.log(JSON.stringify(payload, null, 2));
+    console.log('🔐 [registrarUsuarioAdmin] Tipo de participante.ci:', typeof payload.participante.ci);
+
     const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
       method: 'POST',
       headers: getAuthHeaders(),
@@ -79,16 +83,30 @@ export const registrarUsuarioAdmin = async ({ correo, password, participante }) 
       body: JSON.stringify(payload),
     });
 
-    const data = await response.json();
+    console.log('📥 [registrarUsuarioAdmin] Response status:', response.status);
+    
+    let data;
+    try {
+      data = await response.json();
+      console.log('📥 [registrarUsuarioAdmin] Response data:', data);
+    } catch (e) {
+      console.error('❌ [registrarUsuarioAdmin] Error parseando JSON:', e);
+      const text = await response.text();
+      console.error('📄 [registrarUsuarioAdmin] Response text:', text.substring(0, 500));
+      return { ok: false, error: 'Respuesta inválida del servidor' };
+    }
 
     if (response.status === 401) {
       return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
     }
 
     if (!response.ok) {
+      const errorMsg = data.error || data.mensaje || data.message || 'Error al registrar usuario';
+      console.error('❌ [registrarUsuarioAdmin] Error del backend:', errorMsg);
+      console.error('❌ [registrarUsuarioAdmin] Data completa:', data);
       return {
         ok: false,
-        error: data.error || data.mensaje || data.message || 'Error al registrar usuario',
+        error: errorMsg,
       };
     }
 
@@ -200,21 +218,34 @@ export const obtenerParticipante = async (ci, detailed = false) => {
  */
 export const crearParticipante = async (participante) => {
   try {
-    // Mapear campo 'tipo' del formulario a 'tipo_participante' esperado por el backend
-    const payload = { ...participante }
-    // Asegurar que siempre enviamos 'tipo_participante' y también 'tipo' por compatibilidad
-    // Prefer values explicitly provided by the caller. Only default when missing.
-    payload.tipo_participante = payload.tipo_participante || payload.tipo || 'Estudiante'
-    // If caller already provided a readable `tipo`, keep it. Otherwise, derive a
-    // readable `tipo` from the canonical `tipo_participante`.
-    if (!payload.tipo) {
-      // If backend canonical is 'alumno', prefer readable 'Estudiante'
-      payload.tipo = payload.tipo_participante && payload.tipo_participante.toString().toLowerCase() === 'alumno'
-        ? 'Estudiante'
-        : (payload.tipo_participante ? payload.tipo_participante.charAt(0).toUpperCase() + payload.tipo_participante.slice(1) : '');
+    // Construir payload limpio solo con los campos que el backend acepta
+    const payload = {
+      ci: participante.ci,
+      nombre: participante.nombre,
+      apellido: participante.apellido,
+      email: participante.email,
+    };
+
+    // Agregar programa y tipo solo si están presentes (ambos o ninguno)
+    const programa = participante.programa || participante.programa_academico;
+    const tipo = participante.tipo || participante.tipo_participante;
+    
+    if (programa && tipo) {
+      payload.programa = programa;
+      // Mapear tipo a valores esperados por backend
+      const tipoLower = tipo.toString().toLowerCase();
+      if (tipoLower === 'estudiante' || tipoLower === 'alumno') {
+        payload.tipo = 'Estudiante';
+      } else if (tipoLower === 'docente') {
+        payload.tipo = 'Docente';
+      } else if (tipoLower === 'postgrado' || tipoLower === 'posgrado') {
+        payload.tipo = 'Postgrado';
+      } else {
+        payload.tipo = tipo.charAt(0).toUpperCase() + tipo.slice(1);
+      }
     }
-    // Incluir programa si el formulario lo envía (soportar variantes de clave)
-    payload.programa = participante.programa || participante.programa_id || participante.programa_academico || payload.programa || null
+
+    console.log('📤 [crearParticipante] Payload final a enviar:', JSON.stringify(payload, null, 2));
 
     const response = await fetch(`${API_BASE_URL}/participantes/`, {
       method: 'POST',

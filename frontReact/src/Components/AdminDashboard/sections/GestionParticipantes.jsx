@@ -69,12 +69,13 @@ export default function GestionParticipantes() {
     try {
       const resultado = await listarProgramas()
       if (resultado.ok) {
+        console.log('📚 [cargarProgramas] Programas cargados desde backend:', resultado.data)
         setProgramas(resultado.data || [])
       } else {
-
+        console.error('❌ [cargarProgramas] Error:', resultado.error)
       }
     } catch (err) {
-
+      console.error('❌ [cargarProgramas] Exception:', err)
     }
   }
 
@@ -264,41 +265,59 @@ export default function GestionParticipantes() {
 
   if (modoModal === 'crear') {
 
-    // Validar que tenga al menos un programa asignado
-    if (programasAsignados.length === 0) {
-      setError('Debes agregar al menos un programa');
-      return;
-    }
+    // NO validar programas obligatorios - son opcionales según el backend
+    // if (programasAsignados.length === 0) {
+    //   setError('Debes agregar al menos un programa');
+    //   return;
+    // }
 
     console.log("ENVIANDO PARTICIPANTE (crear) - formData crudo:", formData);
     console.log("ENVIANDO PARTICIPANTE (crear) - programas asignados:", programasAsignados);
 
-    // Paso 1: Crear participante con el primer programa
-    const primerPrograma = programasAsignados[0];
+    // Paso 1: Crear participante - con o sin programa
     const payload = {
-      ci: formData.ci,
+      ci: parseInt(formData.ci, 10),  // Convertir a número
       nombre: formData.nombre,
       apellido: formData.apellido,
       email: formData.email,
-      programa_academico: primerPrograma.programa,
-      tipo_participante: primerPrograma.tipo.charAt(0).toUpperCase() + primerPrograma.tipo.slice(1),
     };
-    
-    console.log("ENVIANDO PARTICIPANTE (crear) - payload primer programa:", payload);
+
+    // Solo agregar programa y tipo si hay programas asignados
+    if (programasAsignados.length > 0) {
+      const primerPrograma = programasAsignados[0];
+      payload.programa = primerPrograma.programa;
+      payload.tipo = primerPrograma.tipo.charAt(0).toUpperCase() + primerPrograma.tipo.slice(1);
+      
+      console.log('🔍 [GestionParticipantes] Primer programa:', primerPrograma);
+    } else {
+      console.log('⚠️ [GestionParticipantes] Creando participante SIN programa');
+    }
+
+    console.log('🔍 [GestionParticipantes] Payload antes de enviar:', payload);
 
     try {
-      // Si tiene contraseña, usar el endpoint de registro combinado
+      // Si tiene contraseña, usar endpoint combinado /api/auth/register
       if (formData.contraseña) {
         const correo = formData.email;
         const password = formData.contraseña;
 
-        const resReg = await registrarUsuarioAdmin({ correo, password, participante: payload });
+        // Para /api/auth/register, el participante NO debe tener email (va en correo raíz)
+        const { email, ...participanteSinEmail } = payload;
+
+        console.log('🔐 Usando /api/auth/register (con contraseña)');
+        const resReg = await registrarUsuarioAdmin({ 
+          correo, 
+          password, 
+          participante: participanteSinEmail 
+        });
 
         if (!resReg.ok) {
           setError(resReg.error || 'Error al registrar usuario');
           return;
         }
       } else {
+        // Sin contraseña, usar endpoint directo /participantes/
+        console.log('👤 Usando /participantes/ (sin contraseña)');
         const resultado = await crearParticipante(payload);
 
         if (!resultado.ok) {
