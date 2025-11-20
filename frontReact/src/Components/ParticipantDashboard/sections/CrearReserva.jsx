@@ -425,7 +425,7 @@ export default function CrearReserva({ tienesSanciones }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="turno">Turno (máximo dos turnos consecutivos)</label>
+          <label htmlFor="turno">Turno (máximo dos turnos)</label>
           {turnos.length === 0 ? (
             <div className="form-input">
               Seleccione una sala y una fecha para visualizar los turnos
@@ -470,7 +470,7 @@ export default function CrearReserva({ tienesSanciones }) {
                         if (isChecked) {
                           if (nuevosSeleccionados.length >= 2) {
                             alert(
-                              'Solo es posible seleccionar hasta dos turnos consecutivos (máximo dos horas).'
+                              'Solo es posible seleccionar hasta dos turnos (máximo dos horas).'
                             )
                             return prev
                           }

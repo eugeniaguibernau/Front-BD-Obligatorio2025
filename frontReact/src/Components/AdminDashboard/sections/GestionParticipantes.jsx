@@ -223,6 +223,8 @@ export default function GestionParticipantes() {
       programa_academico: getProgramaPrimario(participante) || '',
       contraseña: '',
     })
+    setProgramasAsignados([])
+    setProgramaTemporal({ programa: '', tipo: 'estudiante' })
     setParticipanteSeleccionado(participante)
     setMostrarModal(true)
   }
@@ -377,22 +379,53 @@ export default function GestionParticipantes() {
     if (formData.programa_academico !== originalPrograma)
       cambios.programa_academico = formData.programa_academico;
 
-    if (Object.keys(cambios).length === 0) {
+    // Actualizar datos básicos si hay cambios
+    if (Object.keys(cambios).length > 0) {
+      console.log("ENVIANDO PARTICIPANTE (editar)", cambios);
+
+      const resultado = await actualizarParticipante(formData.ci, cambios);
+      
+      if (!resultado.ok) {
+        setError(resultado.error);
+        return;
+      }
+    }
+
+    // Agregar nuevos programas si hay
+    if (programasAsignados.length > 0) {
+      console.log(`[GestionParticipantes] Agregando ${programasAsignados.length} programa(s) adicional(es)`);
+      
+      for (let i = 0; i < programasAsignados.length; i++) {
+        const programaAdicional = programasAsignados[i];
+        const tipoCapitalizado = programaAdicional.tipo.charAt(0).toUpperCase() + programaAdicional.tipo.slice(1);
+        
+        console.log(`[GestionParticipantes] Agregando programa: ${programaAdicional.programa} (${tipoCapitalizado})`);
+        
+        const resAgregar = await agregarProgramaAParticipante(
+          formData.ci,
+          programaAdicional.programa,
+          tipoCapitalizado
+        );
+
+        if (!resAgregar.ok) {
+          setError(`Error al agregar programa ${programaAdicional.programa}: ${resAgregar.error}`);
+          // Continuar con los demás programas aunque uno falle
+        }
+      }
+    }
+
+    if (Object.keys(cambios).length === 0 && programasAsignados.length === 0) {
       alert('No hay cambios para guardar');
       return;
     }
 
-    console.log("ENVIANDO PARTICIPANTE (editar)", cambios);
-
-    const resultado = await actualizarParticipante(formData.ci, cambios);
+    const mensaje = programasAsignados.length > 0 
+      ? `Participante actualizado exitosamente con ${programasAsignados.length} programa(s) adicional(es)`
+      : 'Participante actualizado exitosamente';
     
-    if (resultado.ok) {
-      alert('Participante actualizado exitosamente');
-      cerrarModal();
-      cargarParticipantes();
-    } else {
-      setError(resultado.error);
-    }
+    alert(mensaje);
+    cerrarModal();
+    cargarParticipantes();
   }
 };
 
@@ -721,6 +754,93 @@ export default function GestionParticipantes() {
                         placeholder="Ingresar programa"
                       />
                     )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>Agregar programas adicionales (opcional)</label>
+                    <p style={{ fontSize: '0.9em', color: '#666', marginBottom: '10px' }}>
+                      Puedes agregar múltiples programas/roles a este participante. Por ejemplo, si es Alumno de "Ing. Informática" y también Docente de "Programación Avanzada".
+                    </p>
+                    
+                    {programasAsignados.length > 0 && (
+                      <div style={{ marginBottom: '10px', padding: '10px', backgroundColor: '#f0f0f0', borderRadius: '4px' }}>
+                        <strong>Programas a agregar ({programasAsignados.length}):</strong>
+                        <ul style={{ marginTop: '5px', paddingLeft: '20px' }}>
+                          {programasAsignados.map((prog, index) => (
+                            <li key={index} style={{ marginBottom: '5px' }}>
+                              {prog.programa} - <em>{prog.tipo.charAt(0).toUpperCase() + prog.tipo.slice(1)}</em>
+                              <button
+                                type="button"
+                                onClick={() => eliminarProgramaDeLista(index)}
+                                style={{ marginLeft: '10px', color: 'red', cursor: 'pointer', background: 'none', border: 'none' }}
+                              >
+                                ✖
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+                      <div style={{ flex: 2 }}>
+                        <label htmlFor="programa_temp_edit">Programa</label>
+                        {programas && programas.length > 0 ? (
+                          <select
+                            id="programa_temp_edit"
+                            value={programaTemporal.programa}
+                            onChange={(e) => setProgramaTemporal({ ...programaTemporal, programa: e.target.value })}
+                            className="form-input"
+                          >
+                            <option value="">Seleccionar programa</option>
+                            {programas.map((pr, idx) => {
+                              const idFac = pr.id_facultad ?? pr.id ?? pr._id ?? idx;
+                              const nombre = pr.nombre_programa ?? pr.label ?? pr.value ?? String(idFac);
+                              const key = `${idFac}-${nombre}-${idx}`;
+                              return (
+                                <option key={key} value={nombre}>
+                                  {nombre}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        ) : (
+                          <input
+                            type="text"
+                            id="programa_temp_edit"
+                            value={programaTemporal.programa}
+                            onChange={(e) => setProgramaTemporal({ ...programaTemporal, programa: e.target.value })}
+                            className="form-input"
+                            placeholder="Ingresar programa"
+                          />
+                        )}
+                      </div>
+
+                      <div style={{ flex: 1 }}>
+                        <label htmlFor="tipo_temp_edit">Tipo</label>
+                        <select
+                          id="tipo_temp_edit"
+                          value={programaTemporal.tipo}
+                          onChange={(e) => setProgramaTemporal({ ...programaTemporal, tipo: e.target.value })}
+                          className="form-input"
+                        >
+                          <option value="estudiante">Estudiante</option>
+                          <option value="docente">Docente</option>
+                          <option value="postgrado">Postgrado</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <button
+                          type="button"
+                          onClick={agregarProgramaALista}
+                          className="btn-primary"
+                          style={{ whiteSpace: 'nowrap' }}
+                        >
+                          + Agregar
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
