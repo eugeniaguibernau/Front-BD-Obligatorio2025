@@ -278,7 +278,7 @@ export default function GestionSanciones() {
   const handleSaveEdit = async (sancion, index) => {
     setError(null);
     setSuccess(null);
-    // validations: inicio >= today, fin > today, fin > inicio
+    
     const parseYMD = (s) => s ? new Date(s + 'T00:00:00') : null;
     const inicioD = parseYMD(editInicio);
     const finD = parseYMD(editFin);
@@ -287,12 +287,6 @@ export default function GestionSanciones() {
 
     if (!inicioD || !finD || isNaN(inicioD.getTime()) || isNaN(finD.getTime())) {
       setEditError('Fechas inválidas. Use el selector de fecha.');
-      setTimeout(() => setEditError(null), 5000);
-      return;
-    }
-
-    if (inicioD.getTime() < todayMid.getTime()) {
-      setEditError('La fecha de inicio debe ser hoy o posterior');
       setTimeout(() => setEditError(null), 5000);
       return;
     }
@@ -339,8 +333,21 @@ export default function GestionSanciones() {
       let resultado;
 
       if (posibleId) {
-
-        resultado = await sancionService.actualizarSancionPorId(posibleId, inicioStr, finStr);
+        // Enviar solo los campos que cambiaron (para evitar validaciones innecesarias del backend)
+        const cambios = {};
+        
+        // Solo enviar fecha_inicio si cambió
+        if (inicioStr !== origenInicio) {
+          cambios.fecha_inicio = inicioStr;
+        }
+        
+        // Solo enviar fecha_fin si cambió
+        if (finStr !== origenFin) {
+          cambios.fecha_fin = finStr;
+        }
+        
+        console.log('🔁 Actualizando sanción por ID usando PATCH:', posibleId, cambios);
+        resultado = await sancionService.actualizarSancionPorId(posibleId, cambios);
       } else {
         console.log('🔁 Actualizando sanción por claves (fallback delete+create):', sancion.ci_participante, origenInicio, origenFin, '->', inicioStr, finStr);
         resultado = await sancionService.actualizarSancion(

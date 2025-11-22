@@ -514,7 +514,7 @@ export default function GestionReservas() {
                   onChange={(e) => setNuevoEstado(e.target.value)}
                   required
                 >
-                  {ESTADOS.map(estado => (
+                  {ESTADOS.filter(e => e.toLowerCase() !== 'finalizada').map(estado => (
                     <option key={estado} value={estado}>
                       {estado.charAt(0).toUpperCase() + estado.slice(1)}
                     </option>

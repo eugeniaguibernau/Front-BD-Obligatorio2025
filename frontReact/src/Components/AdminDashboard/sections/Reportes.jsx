@@ -126,6 +126,18 @@ export default function Reportes() {
     setDatos(null)
     setReporteActivo(reporteId)
 
+    // Validar que la fecha de inicio no sea posterior a la fecha de fin
+    if (fechaInicio && fechaFin) {
+      const inicio = new Date(fechaInicio + 'T00:00:00')
+      const fin = new Date(fechaFin + 'T00:00:00')
+      
+      if (!isNaN(inicio.getTime()) && !isNaN(fin.getTime()) && inicio > fin) {
+        setError('La fecha de inicio no puede ser posterior a la fecha de fin')
+        setLoading(false)
+        return
+      }
+    }
+
     let resultado
 
     try {
@@ -355,7 +367,15 @@ export default function Reportes() {
               <input
                 type="date"
                 value={fechaInicio}
-                onChange={(e) => setFechaInicio(e.target.value)}
+                onChange={(e) => {
+                  const fecha = e.target.value
+                  // Validar que la fecha sea válida
+                  const dateObj = new Date(fecha + 'T00:00:00')
+                  if (!isNaN(dateObj.getTime())) {
+                    setFechaInicio(fecha)
+                  }
+                }}
+                max={fechaFin || undefined}
               />
             </div>
             <div className="form-group">
@@ -363,7 +383,15 @@ export default function Reportes() {
               <input
                 type="date"
                 value={fechaFin}
-                onChange={(e) => setFechaFin(e.target.value)}
+                onChange={(e) => {
+                  const fecha = e.target.value
+                  // Validar que la fecha sea válida
+                  const dateObj = new Date(fecha + 'T00:00:00')
+                  if (!isNaN(dateObj.getTime())) {
+                    setFechaFin(fecha)
+                  }
+                }}
+                min={fechaInicio || undefined}
               />
             </div>
           </div>
