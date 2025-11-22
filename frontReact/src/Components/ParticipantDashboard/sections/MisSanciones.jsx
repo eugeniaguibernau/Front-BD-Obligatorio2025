@@ -125,7 +125,6 @@ export default function MisSanciones({ setTienesSanciones }) {
 
   useEffect(() => {
     fetchSanciones()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   return (

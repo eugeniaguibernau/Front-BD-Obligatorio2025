@@ -78,7 +78,6 @@ export default function DashboardPersonal({ tienesSanciones, setTienesSanciones 
       }
     }
     load()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   const look = (obj, keys) => keys.reduce((acc, k) => acc || (obj && (obj[k])), null)

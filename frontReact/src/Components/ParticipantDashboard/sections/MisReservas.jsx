@@ -35,12 +35,10 @@ export default function MisReservas() {
 
   useEffect(() => {
     fetchReservas()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
     markPastAsNoAsist(reservas)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reservas])
 
   const buildTurnoStr = (r) => {
@@ -242,11 +240,11 @@ export default function MisReservas() {
       setActionLoading(true)
       for (const r of toUpdate) {
         const id = r.id_reserva || r.id
-        // eslint-disable-next-line no-await-in-loop
         await reservaService.actualizarReserva(id, { estado: 'sin asistencia' })
       }
       if (toUpdate.length > 0) setMessage(`Se marcaron ${toUpdate.length} reservas como sin asistencia (automático)`)
     } catch (e) {
+  
 
     } finally {
       setActionLoading(false)

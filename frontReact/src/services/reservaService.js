@@ -16,7 +16,6 @@ const handleResponse = async (res) => {
 	} catch (e) {
 	}
 	if (res.status === 401) {
-		// auto logout on unauthorized (dev-friendly)
 		try { logout() } catch (e) { /* ignore */ }
 		return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
 	}
