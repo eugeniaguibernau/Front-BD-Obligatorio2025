@@ -114,10 +114,10 @@ export default function CrearReserva({ tienesSanciones }) {
           setDetalleSancion(finalRelease ? `No puedes reservar hasta el ${finalRelease.toLocaleDateString()}` : 'Tienes sanciones vigentes')
         }
       } catch (e) {
+        //return
       }
     }
     checkSanciones()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user])
 
   useEffect(() => {

@@ -218,23 +218,18 @@ export default function GestionSanciones() {
     }
   };
 
-  // Parse a variety of date string formats into YYYY-MM-DD (returns null on failure)
   const parseToYMD = (input) => {
     if (!input && input !== 0) return null
     let s = String(input).trim()
-    // already YYYY-MM-DD
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
-    // common DD/MM/YYYY (UI shows this format)
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
       const [d, m, y] = s.split('/')
       return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
     }
-    // common DD-MM-YYYY
     if (/^\d{2}-\d{2}-\d{4}$/.test(s)) {
       const [d, m, y] = s.split('-')
       return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`
     }
-    // try Date parse as fallback
     const d = new Date(s)
     if (!isNaN(d.getTime())) {
       const y = d.getUTCFullYear()
@@ -249,7 +244,6 @@ export default function GestionSanciones() {
   const startEdit = (index, sancion) => {
     setEditingIndex(index);
     try {
-      // normalize to YYYY-MM-DD for input[type=date]
       const toYMD = (f) => {
         if (!f) return '';
         const d = new Date(f);
@@ -462,8 +456,6 @@ export default function GestionSanciones() {
                 </tr>
               ) : (
                 sanciones.map((sancion, index) => (
-                  // Ensure the key is unique even if multiple sanciones share the same CI and date strings.
-                  // Prefer a stable id when backend provides one; otherwise combine ci + normalized fechas + index.
                   <tr key={`${sancion.ci_participante}_${parseToYMD(sancion.fecha_inicio) || index}_${parseToYMD(sancion.fecha_fin) || ''}_${index}`}>
                     <td>{sancion.ci_participante}</td>
                     {editingIndex === index ? (

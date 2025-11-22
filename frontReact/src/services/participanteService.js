@@ -291,12 +291,8 @@ export const actualizarParticipante = async (ci, datos) => {
     const payloadDatos = { ...datos }
     // Asegurar que si se modifica/indica tipo se envíe como 'tipo_participante'
     if (payloadDatos.tipo || payloadDatos.tipo_participante) {
-      // Ensure canonical value exists
       payloadDatos.tipo_participante = payloadDatos.tipo_participante || payloadDatos.tipo || 'Estudiante'
-      // Only derive a readable `tipo` if the caller did NOT provide one. Do NOT
-      // overwrite an explicit `tipo` sent by the frontend (e.g. 'Postgrado').
       if (!payloadDatos.tipo) {
-        // If canonical is 'alumno' use readable 'Estudiante'
         if (payloadDatos.tipo_participante.toString().toLowerCase() === 'alumno') {
           payloadDatos.tipo = 'Estudiante'
         } else {

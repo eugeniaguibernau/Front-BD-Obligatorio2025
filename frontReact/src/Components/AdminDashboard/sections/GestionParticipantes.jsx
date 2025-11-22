@@ -28,7 +28,6 @@ export default function GestionParticipantes() {
     nombre: '',
     apellido: '',
     email: '',
-    // Use backend-expected field names
     tipo_participante: 'estudiante', // opciones: estudiante, docente, postgrado (lowercase)
     programa_academico: '',
     // Auth field (opcional): contraseña para crear credenciales (email se reutiliza)
@@ -50,7 +49,6 @@ export default function GestionParticipantes() {
     const b = backendTipo.toString().toLowerCase()
     if (b === 'alumno') return 'estudiante'
     if (b === 'docente') return 'docente'
-    // fallback: keep as-is
     return b
   }
 
@@ -61,7 +59,6 @@ export default function GestionParticipantes() {
     if (u === 'postgrado') return 'postgrado'
     if (u === 'alumno') return 'alumno'
     if (u === 'docente') return 'docente'
-    // fallback: return original
     return u
   }
 

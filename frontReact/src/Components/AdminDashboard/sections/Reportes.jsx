@@ -158,7 +158,6 @@ export default function Reportes() {
           resultado = await reporteService.getOcupacionPorEdificio(fechaInicio, fechaFin)
           break
           case 6:
-            // Map UI rol to backend-expected rol when necessary (postgrado -> alumno)
             {
               const rolBackend = rol === 'postgrado' ? 'alumno' : rol || null
               resultado = await reporteService.getReservasYAsistenciaPorRol(fechaInicio, fechaFin, rolBackend)
@@ -277,7 +276,6 @@ export default function Reportes() {
     const cargarEdificios = async () => {
       try {
         let res = await listarSalas()
-        // fallback to reservaService if salaService returns empty or non-ok
         if (!res || !res.ok || !Array.isArray(res.data) || res.data.length === 0) {
           try {
             res = await listarSalasReserva()
@@ -330,7 +328,7 @@ export default function Reportes() {
           const facs = Array.from(facSet).filter(Boolean).sort()
           setFacultades(facs)
           if (facs.length === 0) {
-            // helpful dev log if no faculties found (can remove later)
+            // dev log
 
           }
         } else {

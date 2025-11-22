@@ -1,8 +1,10 @@
 /**
  * Gestión de Reservas 
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import reservaService from '../../../services/reservaService'
+import { obtenerParticipante, obtenerSanciones } from '../../../services/participanteService'
+import { obtenerSala } from '../../../services/salaService'
 import { useAuth } from '../../../hooks/useAuth'
 
 const ESTADOS = ['activa', 'cancelada', 'sin asistencia', 'finalizada']
@@ -43,7 +45,7 @@ export default function GestionReservas() {
   const [loadingSalas, setLoadingSalas] = useState(false)
   const [loadingTurnos, setLoadingTurnos] = useState(false)
 
-  const fetchReservas = async () => {
+  const fetchReservas = useCallback(async () => {
     setLoading(true)
     setError(null)
     const res = await reservaService.listarReservas()
@@ -58,12 +60,11 @@ export default function GestionReservas() {
       setReservas(res.data || [])
     }
     setLoading(false)
-  }
+  }, [logout])
 
   useEffect(() => {
     fetchReservas()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [fetchReservas])
 
   // Aplicar búsqueda y filtros
   useEffect(() => {
@@ -141,15 +142,15 @@ export default function GestionReservas() {
             try {
               const ci = p.ci || p.ci_participante || p.cedula || p.identificacion
               if (!ci) continue
-              // eslint-disable-next-line no-await-in-loop
               await reservaService.marcarAsistencia(reservaSeleccionada.id_reserva, ci, true)
-            } catch (e) {
-
+            } catch (err) {
+              // registrar error de marcar asistencia pero continuar
+              console.error('[GestionReservas] Error marcando asistencia para participante:', err)
             }
           }
         }
-      } catch (e) {
-
+      } catch (err) {
+        console.error('[GestionReservas] Error al marcar asistencia en lote:', err)
       }
     }
 
@@ -331,6 +332,108 @@ export default function GestionReservas() {
       const [dia, mes, anio] = formCrear.fecha.split('/')
       fechaFormateada = `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`
     }
+    // Helpers locales para validaciones por participante y disponibilidad
+    const normalizeCi = (ci) => (typeof ci === 'string' ? ci.trim() : String(ci))
+
+    const reservasIncluyenParticipante = (reserva, ci) => {
+      if (!reserva) return false
+      const partes = reserva.participantes || []
+      // participantes puede ser array de números o de objetos con campo ci
+      for (const p of partes) {
+        if (!p && p !== 0) continue
+        if (typeof p === 'number' || typeof p === 'string') {
+          if (String(p) === String(ci)) return true
+        } else if (p.ci || p.ci_participante || p.identificacion || p.cedula) {
+          const val = p.ci || p.ci_participante || p.identificacion || p.cedula
+          if (String(val) === String(ci)) return true
+        }
+      }
+      return false
+    }
+
+    const parseDate = (s) => {
+      // s expected YYYY-MM-DD
+      const parts = String(s).split('-')
+      if (parts.length < 3) return null
+      return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+    }
+
+    const sameDay = (d1, d2) => {
+      return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate()
+    }
+
+    const startOfWeek = (d) => {
+      // semana que empieza el lunes
+      const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+      const day = copy.getDay() // 0 Domingo .. 6 Sábado
+      const diffToMonday = (day === 0) ? -6 : 1 - day
+      copy.setDate(copy.getDate() + diffToMonday)
+      copy.setHours(0,0,0,0)
+      return copy
+    }
+
+    const endOfWeek = (d) => {
+      const s = startOfWeek(d)
+      const e = new Date(s)
+      e.setDate(s.getDate() + 6)
+      e.setHours(23,59,59,999)
+      return e
+    }
+
+    const horaToMinutes = (hhmmss) => {
+      if (!hhmmss) return null
+      const parts = String(hhmmss).split(':').map(p => parseInt(p, 10))
+      return (parts[0] || 0) * 60 + (parts[1] || 0)
+    }
+
+    const rangesOverlap = (aStart, aEnd, bStart, bEnd) => {
+      if (aStart == null || aEnd == null || bStart == null || bEnd == null) return false
+      return Math.max(aStart, bStart) < Math.min(aEnd, bEnd)
+    }
+
+    const reservaConflictaConTurnos = (reserva, turnosSeleccionados) => {
+      try {
+        if (!reserva || !reserva.turnos || reserva.turnos.length === 0) return false
+        for (const tSel of turnosSeleccionados) {
+          const selStart = horaToMinutes(tSel.hora_inicio)
+          const selEnd = horaToMinutes(tSel.hora_fin)
+          for (const rt of reserva.turnos) {
+            const rStart = horaToMinutes(rt.hora_inicio)
+            const rEnd = horaToMinutes(rt.hora_fin)
+            if (rangesOverlap(selStart, selEnd, rStart, rEnd)) return true
+          }
+        }
+      } catch {
+        return false
+      }
+      return false
+    }
+
+    // Validaciones por participante:
+    // - No puede reservar si tiene sanciones activas
+    // - No puede tener más de 2 reservas activas en el mismo día
+    // - Si es Estudiante: no puede tener más de 3 reservas activas en la misma semana
+    // Usaremos la lista local `reservas` (ya cargada) para contar reservas existentes
+    const fechaObj = parseDate(fechaFormateada)
+    if (!fechaObj) {
+      setError('Fecha inválida')
+      setLoading(false)
+      return
+    }
+    const reservasEnSemana = (ci) => {
+      const s = startOfWeek(fechaObj)
+      const e = endOfWeek(fechaObj)
+      return reservas.filter(r => {
+        if (!reservasIncluyenParticipante(r, ci)) return false
+        const rFecha = parseDate(r.fecha)
+        if (!rFecha) return false
+        const estado = (r.estado_actual || r.estado || '').toLowerCase()
+        if (estado !== 'activa') return false
+        return (rFecha >= s && rFecha <= e)
+      })
+    }
+
+    // Preparar objetos de turnos seleccionados con horas para chequear conflictos con reservas existentes en la misma sala
     
     const turnosPayload = formCrear.turnos_seleccionados.map(idTurno => {
       const turno = turnos.find(t => t.id_turno === idTurno)
@@ -349,6 +452,144 @@ export default function GestionReservas() {
       }
     })
     
+    // Antes de enviar al backend: validaciones por participante y disponibilidad de sala/turnos
+    // Construir lista de objetos seleccionados con horas para validar solapamientos
+    const turnosSeleccionadosObj = turnosPayload.map(tp => ({ hora_inicio: tp.hora_inicio, hora_fin: tp.hora_fin }))
+
+    // Obtener info de la sala (tipo_sala) para aplicar excepciones de límites
+    let salaTipo = null
+    try {
+      const salaRes = await obtenerSala(formCrear.nombre_sala, formCrear.edificio)
+      if (salaRes && salaRes.ok && salaRes.data) {
+        salaTipo = (salaRes.data.tipo_sala || salaRes.data.tipo || '').toString().toLowerCase()
+      }
+    } catch {
+      // no bloquear si falla la consulta, asumimos null
+      salaTipo = null
+    }
+
+    // 1) Verificar que no exista otra reserva en la misma sala/fecha con turnos solapados
+    const salaConflicto = reservas.find(r => {
+      if ((r.nombre_sala || '') !== formCrear.nombre_sala) return false
+      if ((r.edificio || '') !== formCrear.edificio) return false
+      if (String(r.fecha) !== String(fechaFormateada)) return false
+      // Solo considerar reservas activas/confirmadas
+      const estado = (r.estado_actual || r.estado || '').toLowerCase()
+      if (estado !== 'activa') return false
+      return reservaConflictaConTurnos(r, turnosSeleccionadosObj)
+    })
+
+    if (salaConflicto) {
+      setError(`Ya existe una reserva activa en esa sala/horario (ID: ${salaConflicto.id_reserva}).`) 
+      setLoading(false)
+      return
+    }
+
+    // 2) Validaciones por participante (sanciones y límites)
+    for (const ciRaw of participantesValidos) {
+      const ci = normalizeCi(ciRaw)
+      // verificar sanciones (preciso llamar al servicio)
+      try {
+        const sancRes = await obtenerSanciones(ci)
+        if (sancRes && sancRes.unauthorized) {
+          logout()
+          setLoading(false)
+          return
+        }
+        if (sancRes && sancRes.ok && Array.isArray(sancRes.data) && sancRes.data.length > 0) {
+          setError(`El participante ${ci} tiene sanciones activas y no puede reservar.`)
+          setLoading(false)
+          return
+        }
+      } catch (err) {
+        // Si falla el servicio, no bloqueamos por completo, pero informamos
+        setError(`No se pudo verificar sanciones para CI ${ci}: ${err.message || err}`)
+        setLoading(false)
+        return
+      }
+
+      // Obtener tipo de participante para aplicar posibles excepciones
+      let tipo = null
+      try {
+        const pRes = await obtenerParticipante(ci, true)
+        if (pRes && pRes.unauthorized) {
+          logout()
+          setLoading(false)
+          return
+        }
+        if (pRes && pRes.ok && pRes.data) {
+          tipo = (pRes.data.tipo_participante || pRes.data.tipo || '').toString().toLowerCase()
+        }
+      } catch {
+        tipo = null
+      }
+
+      // Normalizar tipos equivalentes
+      const tipoNorm = (tipo || '').toString().toLowerCase()
+      const isDocente = tipoNorm === 'docente'
+      const isPosgrado = tipoNorm === 'postgrado' || tipoNorm === 'posgrado'
+
+      // La sala puede ser de tipo 'docente' o 'posgrado' o 'libre'
+      const salaEsDocente = salaTipo === 'docente'
+      const salaEsPosgrado = salaTipo === 'posgrado'
+
+      const isExemptForSala = (isDocente && salaEsDocente) || (isPosgrado && salaEsPosgrado)
+
+      // En salas exclusivas validar que solo participen participantes del tipo correcto
+      if (salaEsDocente && !isDocente) {
+        setError(`La sala seleccionada es exclusiva para docentes. El participante ${ci} no es docente.`)
+        setLoading(false)
+        return
+      }
+      if (salaEsPosgrado && !isPosgrado) {
+        setError(`La sala seleccionada es exclusiva para posgrado. El participante ${ci} no es posgrado.`)
+        setLoading(false)
+        return
+      }
+
+      // calcular minutos ya ocupados por el participante en la fecha
+      const newMinutes = turnosSeleccionadosObj.reduce((acc, t) => {
+        const s = horaToMinutes(t.hora_inicio)
+        const e = horaToMinutes(t.hora_fin)
+        if (s == null || e == null) return acc
+        return acc + Math.max(0, e - s)
+      }, 0)
+
+      let existingMinutes = 0
+      for (const r of reservas) {
+        if (!reservasIncluyenParticipante(r, ci)) continue
+        const rFecha = parseDate(r.fecha)
+        if (!rFecha) continue
+        const estado = (r.estado_actual || r.estado || '').toLowerCase()
+        if (estado !== 'activa') continue
+        if (!sameDay(rFecha, fechaObj)) continue
+        if (!r.turnos || r.turnos.length === 0) continue
+        for (const rt of r.turnos) {
+          const rs = horaToMinutes(rt.hora_inicio)
+          const re = horaToMinutes(rt.hora_fin)
+          if (rs == null || re == null) continue
+          existingMinutes += Math.max(0, re - rs)
+        }
+      }
+
+      // Si NO está exento por ser docente/posgrado en sala exclusiva, aplicar límites
+      if (!isExemptForSala) {
+        // límite diario: máximo 120 minutos ocupados
+        if ((existingMinutes + newMinutes) > 120) {
+          setError(`El participante ${ci} excede el límite diario de 2 horas (ocupadas: ${existingMinutes} min, intento sumar: ${newMinutes} min).`)
+          setLoading(false)
+          return
+        }
+
+        // límite semanal: máximo 3 reservas activas en la semana
+        const cntSemana = reservasEnSemana(ci).length
+        if (cntSemana >= 3) {
+          setError(`El participante ${ci} ya participa en ${cntSemana} reservas activas esta semana (máximo 3).`)
+          setLoading(false)
+          return
+        }
+      }
+    }
     const payload = {
       fecha: fechaFormateada,
       nombre_sala: formCrear.nombre_sala,
