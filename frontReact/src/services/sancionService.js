@@ -187,22 +187,31 @@ async function actualizarSancion(ci_participante, fecha_inicio_actual, fecha_fin
 }
 
 /**
- * Actualizar sanción por ID usando el endpoint PUT /sanciones/{id}
- * Si el backend expone un identificador por sanción (id, id_sancion, _id),
- * es preferible usar este método. Mantenerlo separado para compatibilidad.
- * @param {string|number} idSancion
- * @param {string} fecha_inicio_nueva - YYYY-MM-DD
- * @param {string} fecha_fin_nueva - YYYY-MM-DD
+ * Actualizar sanción por ID usando el endpoint PATCH /sanciones/{id}
+ * Permite actualizar solo fecha_inicio, solo fecha_fin, o ambas
+ * @param {string|number} idSancion - ID de la sanción
+ * @param {Object} cambios - Objeto con los campos a actualizar
+ * @param {string} [cambios.fecha_inicio] - Nueva fecha inicio YYYY-MM-DD (opcional)
+ * @param {string} [cambios.fecha_fin] - Nueva fecha fin YYYY-MM-DD (opcional)
  */
-async function actualizarSancionPorId(idSancion, fecha_inicio_nueva, fecha_fin_nueva) {
+async function actualizarSancionPorId(idSancion, cambios) {
   try {
-    const payload = {
-      fecha_inicio: fecha_inicio_nueva,
-      fecha_fin: fecha_fin_nueva
-    };
+    // Construir el payload solo con los campos que se quieren cambiar
+    const payload = {};
+    if (cambios.fecha_inicio !== undefined) {
+      payload.fecha_inicio = cambios.fecha_inicio;
+    }
+    if (cambios.fecha_fin !== undefined) {
+      payload.fecha_fin = cambios.fecha_fin;
+    }
+
+    // Validar que al menos un campo esté presente
+    if (Object.keys(payload).length === 0) {
+      return { ok: false, error: 'Debe proporcionar al menos fecha_inicio o fecha_fin para actualizar' };
+    }
 
     const response = await fetch(`${API_URL}/sanciones/${encodeURIComponent(idSancion)}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify(payload)
     });
@@ -229,7 +238,7 @@ async function actualizarSancionPorId(idSancion, fecha_inicio_nueva, fecha_fin_n
     const data = await response.json();
     return { ok: true, data: data };
   } catch (error) {
-
+    console.error('Error al actualizar sanción:', error);
     return { ok: false, error: 'Error de conexión' };
   }
 }
