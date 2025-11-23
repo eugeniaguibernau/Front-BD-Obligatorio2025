@@ -365,7 +365,6 @@ export default function GestionReservas() {
     }
 
     const parseDate = (s) => {
-      // s expected YYYY-MM-DD
       const parts = String(s).split('-')
       if (parts.length < 3) return null
       return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
