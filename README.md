@@ -1,13 +1,13 @@
 # Front-BD-Obligatorio2025
-#Instalación
+# Instalación
 
-##Cloná el repositorio y luego instalá las dependencias:
+## Cloná el repositorio y luego instalá las dependencias:
 ```bash
 npm install
 ```
-##Ejecutar en modo desarrollo
+## Ejecutar en modo desarrollo
 
-###Para levantar el servidor de desarrollo:
+### Para levantar el servidor de desarrollo:
 ```bash
 npm run dev
 ```
