@@ -1,7 +1,7 @@
 /**
  * Mis Reservas
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import reservaService from '../../../services/reservaService'
 import { useAuth } from '../../../hooks/useAuth'
 
@@ -227,25 +227,29 @@ export default function MisReservas() {
     }
   }
 
+  // Evitar reintentos si el backend responde TURN_NOT_FINISHED o NO_TURNO_INFO
+  const noAsistBlocked = useRef(new Set())
   const markPastAsNoAsist = async (list) => {
     if (!Array.isArray(list) || list.length === 0) return
     const now = new Date()
     const toUpdate = list.filter(r => {
       const fecha = r.fecha ? new Date(r.fecha) : null
       const st = (r.estado || '').toString().toLowerCase()
-      return st === 'activa' && fecha && !isNaN(fecha.getTime()) && fecha.getTime() < now.getTime()
+      return st === 'activa' && fecha && !isNaN(fecha.getTime()) && fecha.getTime() < now.getTime() && !noAsistBlocked.current.has(r.id_reserva || r.id)
     })
     if (toUpdate.length === 0) return
     try {
       setActionLoading(true)
       for (const r of toUpdate) {
         const id = r.id_reserva || r.id
-        await reservaService.actualizarReserva(id, { estado: 'sin asistencia' })
+        const res = await reservaService.actualizarReserva(id, { estado: 'sin asistencia' })
+        if (res && res.code && (res.code === 'TURN_NOT_FINISHED' || res.code === 'NO_TURNO_INFO')) {
+          noAsistBlocked.current.add(id)
+        }
       }
       if (toUpdate.length > 0) setMessage(`Se marcaron ${toUpdate.length} reservas como sin asistencia (automático)`)
     } catch (e) {
-  
-
+      // opcional: mostrar error
     } finally {
       setActionLoading(false)
       fetchReservas()
