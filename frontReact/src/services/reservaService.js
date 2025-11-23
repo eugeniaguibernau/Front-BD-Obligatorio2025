@@ -69,16 +69,22 @@ export const crearReserva = async (payload) => {
 
 export const actualizarReserva = async (id, payload) => {
 	try {
-			const res = await fetch(`${API_BASE_URL}/reservas/${id}`, {
-				method: 'PUT',
-				headers: buildHeaders(),
-				body: JSON.stringify(payload),
-			})
-			const handled = await handleResponse(res)
-			if (handled.unauthorized) return handled
-			const data = handled.data
-			if (!res.ok) return { ok: false, error: (data && data.error) || 'Error actualizando' }
-			return { ok: true, data }
+		const res = await fetch(`${API_BASE_URL}/reservas/${id}`, {
+			method: 'PUT',
+			headers: buildHeaders(),
+			body: JSON.stringify(payload),
+		})
+		let data = null
+		try { data = await res.json() } catch (e) {}
+		if (res.status === 401) {
+			try { logout() } catch (e) { /* ignore */ }
+			return { ok: false, unauthorized: true, error: (data && data.error) || 'No autorizado' }
+		}
+		if (res.status === 403 && data && (data.code === 'TURN_NOT_FINISHED' || data.code === 'NO_TURNO_INFO')) {
+			return { ok: false, error: data.error || 'No se puede marcar sin asistencia antes de que finalice el turno', code: data.code, retry: false }
+		}
+		if (!res.ok) return { ok: false, error: (data && data.error) || 'Error actualizando' }
+		return { ok: true, data }
 	} catch (error) {
 		return { ok: false, error: error.message }
 	}
