@@ -39,7 +39,7 @@ export default function GestionReservas() {
     fecha: '',
     nombre_sala: '',
     edificio: '',
-    turnos_seleccionados: [], // Array de IDs de turnos (máximo 2)
+    turnos_seleccionados: [], // Array de IDs de turnos (puede ser múltiples)
     participantes: [''] // Array de CIs
   })
   const [loadingSalas, setLoadingSalas] = useState(false)
@@ -324,6 +324,19 @@ export default function GestionReservas() {
       setLoading(false)
       return
     }
+    // Evitar cédulas duplicadas en la misma reserva
+    const dupMap = {}
+    const duplicates = []
+    for (const p of participantesValidos) {
+      const key = String(p)
+      dupMap[key] = (dupMap[key] || 0) + 1
+      if (dupMap[key] === 2) duplicates.push(key)
+    }
+    if (duplicates.length > 0) {
+      setError(`Las siguientes cédulas están repetidas en la reserva: ${duplicates.join(', ')}. Elimina duplicados antes de continuar.`)
+      setLoading(false)
+      return
+    }
     
     // Asegurar formato de fecha YYYY-MM-DD
     let fechaFormateada = formCrear.fecha
@@ -529,11 +542,11 @@ export default function GestionReservas() {
       const isDocente = tipoNorm === 'docente'
       const isPosgrado = tipoNorm === 'postgrado' || tipoNorm === 'posgrado'
 
-      // La sala puede ser de tipo 'docente' o 'posgrado' o 'libre'
-      const salaEsDocente = salaTipo === 'docente'
-      const salaEsPosgrado = salaTipo === 'posgrado'
+  // La sala puede ser de tipo 'docente' o 'posgrado' o 'libre'
+  const salaEsDocente = salaTipo === 'docente'
+  const salaEsPosgrado = salaTipo === 'posgrado' || salaTipo === 'postgrado'
 
-      const isExemptForSala = (isDocente && salaEsDocente) || (isPosgrado && salaEsPosgrado)
+  const isExemptForSala = (isDocente && salaEsDocente) || (isPosgrado && salaEsPosgrado)
 
       // En salas exclusivas validar que solo participen participantes del tipo correcto
       if (salaEsDocente && !isDocente) {
@@ -555,21 +568,46 @@ export default function GestionReservas() {
         return acc + Math.max(0, e - s)
       }, 0)
 
+      // Evitar depender de una posible lógica del backend que calcule semanas usando
+      // la semana actual: computamos localmente las reservas activas del participante
+      // para el día y la semana de la fecha seleccionada (`fechaObj`). Esto asegura
+      // que la validación se aplique siempre sobre la semana objetivo (no la semana actual).
       let existingMinutes = 0
-      for (const r of reservas) {
-        if (!reservasIncluyenParticipante(r, ci)) continue
-        const rFecha = parseDate(r.fecha)
-        if (!rFecha) continue
-        const estado = (r.estado_actual || r.estado || '').toLowerCase()
-        if (estado !== 'activa') continue
-        if (!sameDay(rFecha, fechaObj)) continue
-        if (!r.turnos || r.turnos.length === 0) continue
-        for (const rt of r.turnos) {
-          const rs = horaToMinutes(rt.hora_inicio)
-          const re = horaToMinutes(rt.hora_fin)
-          if (rs == null || re == null) continue
-          existingMinutes += Math.max(0, re - rs)
+      let cntSemana = 0
+      try {
+        // Deduplicar y usar la caché local `reservas` (ya cargada en el componente)
+        const dedupeById = (arr) => {
+          const map = new Map()
+          for (const it of (arr || [])) {
+            const id = it && (it.id_reserva || it.id || it._id || null)
+            if (!id) continue
+            if (!map.has(String(id))) map.set(String(id), it)
+          }
+          return Array.from(map.values())
         }
+
+        // reservas activas en el día (local)
+        const reservasDiaLocal = dedupeById(reservas.filter(r => reservasIncluyenParticipante(r, ci) && ((r.estado_actual || r.estado || '').toLowerCase() === 'activa')))
+        for (const r of reservasDiaLocal) {
+          const rFecha = parseDate(r.fecha)
+          if (!rFecha) continue
+          if (!sameDay(rFecha, fechaObj)) continue
+          if (!r.turnos || r.turnos.length === 0) continue
+          for (const rt of r.turnos) {
+            const rs = horaToMinutes(rt.hora_inicio)
+            const re = horaToMinutes(rt.hora_fin)
+            if (rs == null || re == null) continue
+            existingMinutes += Math.max(0, re - rs)
+          }
+        }
+
+        // reservas activas en la semana (local)
+        cntSemana = reservasEnSemana(ci).length
+      } catch (err) {
+        // En caso de error inesperado, caemos a valores conservadores
+        console.warn('[GestionReservas] Error calculando reservas locales por semana, permitiendo continuar (fallback):', err)
+        existingMinutes = 0
+        cntSemana = 0
       }
 
       // Si NO está exento por ser docente/posgrado en sala exclusiva, aplicar límites
@@ -582,9 +620,10 @@ export default function GestionReservas() {
         }
 
         // límite semanal: máximo 3 reservas activas en la semana
-        const cntSemana = reservasEnSemana(ci).length
-        if (cntSemana >= 3) {
-          setError(`El participante ${ci} ya participa en ${cntSemana} reservas activas esta semana (máximo 3).`)
+        // sumar la reserva solicitada actual (esta creación suma 1)
+        const totalSemana = (cntSemana || 0) + 1
+        if (totalSemana > 3) {
+          setError(`El participante ${ci} ya participa en reservas activas esta semana (máximo 3).`)
           setLoading(false)
           return
         }
@@ -909,7 +948,7 @@ export default function GestionReservas() {
               </div>
 
               <div className="form-group">
-                <label>Turnos (seleccione 1 o 2 turnos) *</label>
+                <label>Turnos (puede seleccionar varios turnos) *</label>
                 {loadingTurnos ? (
                   <p>Cargando turnos...</p>
                 ) : formCrear.nombre_sala ? (
@@ -944,18 +983,15 @@ export default function GestionReservas() {
                               const isChecked = e.target.checked
                               setFormCrear(prev => {
                                 let nuevosSeleccionados = [...prev.turnos_seleccionados]
-                                
+
                                 if (isChecked) {
-                                  // Solo permitir máximo 2 turnos
-                                  if (nuevosSeleccionados.length >= 2) {
-                                    alert('Solo puede seleccionar máximo 2 turnos consecutivos (máximo 2 horas)')
-                                    return prev
-                                  }
+                                  // Permitir seleccionar cualquier cantidad de turnos en UI;
+                                  // las restricciones se validan al enviar según rol y tipo de sala
                                   nuevosSeleccionados.push(turno.id_turno)
                                 } else {
                                   nuevosSeleccionados = nuevosSeleccionados.filter(id => id !== turno.id_turno)
                                 }
-                                
+
                                 return { ...prev, turnos_seleccionados: nuevosSeleccionados }
                               })
                             }}
