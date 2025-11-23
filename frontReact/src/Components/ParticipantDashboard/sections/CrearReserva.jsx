@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react'
 import reservaService from '../../../services/reservaService'
 import sancionService from '../../../services/sancionService'
-import { listarParticipantes } from '../../../services/participanteService'
+import { listarParticipantes, obtenerParticipante } from '../../../services/participanteService'
 import { useAuth } from '../../../hooks/useAuth'
 
 export default function CrearReserva({ tienesSanciones }) {
@@ -188,6 +188,20 @@ export default function CrearReserva({ tienesSanciones }) {
       .filter(Boolean)
       .map(s => (isNaN(Number(s)) ? s : Number(s)))
 
+    // Evitar cédulas duplicadas en la misma reserva
+    const dupMap = {}
+    const duplicates = []
+    for (const p of participantes) {
+      const key = String(p)
+      dupMap[key] = (dupMap[key] || 0) + 1
+      if (dupMap[key] === 2) duplicates.push(key)
+    }
+    if (duplicates.length > 0) {
+      setError(`Las siguientes cédulas están repetidas en la reserva: ${duplicates.join(', ')}. Elimina duplicados antes de continuar.`)
+      setLoading(false)
+      return
+    }
+
     // VALIDACIÓN 1: Debe haber al menos un participante
     if (participantes.length === 0) {
       setError('Debes agregar al menos un participante (tu cédula)')
@@ -253,6 +267,118 @@ export default function CrearReserva({ tienesSanciones }) {
       const s = salas[Number(selectedSalaIndex)]
       payload.nombre_sala = s.nombre_sala ?? s.nombre
       payload.edificio = s.edificio ?? s.nombre_edificio ?? s.edificio
+    }
+
+    // --- Validaciones antes de enviar (roles y límites) ---
+    try {
+      // obtener tipo de sala
+      const sala = selectedSalaIndex !== '' ? salas[Number(selectedSalaIndex)] : null
+      const salaTipo = (sala && (sala.tipo_sala || sala.tipo)) ? (sala.tipo_sala || sala.tipo).toString().toLowerCase() : 'libre'
+
+      // obtener todas las reservas actuales para conteos (cliente)
+      const allRes = await reservaService.listarReservas()
+      const todasReservas = (allRes && allRes.ok && Array.isArray(allRes.data)) ? allRes.data : []
+
+      const parseDate = (s) => {
+        const parts = String(s).split('-')
+        if (parts.length < 3) return null
+        return new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]))
+      }
+      const sameDay = (d1, d2) => d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate()
+      const startOfWeek = (d) => { const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day = copy.getDay(); const diffToMonday = (day === 0) ? -6 : 1 - day; copy.setDate(copy.getDate() + diffToMonday); copy.setHours(0,0,0,0); return copy }
+      const endOfWeek = (d) => { const s = startOfWeek(d); const e = new Date(s); e.setDate(s.getDate() + 6); e.setHours(23,59,59,999); return e }
+      const horaToMinutes = (hhmmss) => { if (!hhmmss) return null; const parts = String(hhmmss).split(':').map(p => parseInt(p,10)); return (parts[0]||0)*60 + (parts[1]||0) }
+
+      // calcular minutos de la nueva reserva
+      const newMinutes = (payload.turnos || []).reduce((acc, t) => { const s = horaToMinutes(t.hora_inicio); const e = horaToMinutes(t.hora_fin); if (s==null||e==null) return acc; return acc + Math.max(0, e - s) }, 0)
+
+      const fechaObj = parseDate(payload.fecha)
+      if (!fechaObj) {
+        setError('Fecha inválida')
+        setLoading(false)
+        return
+      }
+
+      // Validar por participante
+      for (const ciRaw of participantes) {
+        const ci = String(ciRaw)
+
+        // 1) sanciones
+        try {
+          const sancRes = await sancionService.listarSanciones(ci)
+          if (sancRes && sancRes.unauthorized) { setError('No autorizado'); setLoading(false); return }
+          const sancData = (sancRes && sancRes.ok) ? (Array.isArray(sancRes.data) ? sancRes.data : (sancRes.data && sancRes.data.sanciones) || []) : []
+          if (sancData && sancData.length > 0) {
+            setError(`El participante ${ci} tiene sanciones activas y no puede reservar.`)
+            setLoading(false)
+            return
+          }
+        } catch (err) {
+          setError(`Error verificando sanciones para ${ci}: ${err.message || err}`)
+          setLoading(false)
+          return
+        }
+
+        // 2) rol del participante
+        let tipo = null
+        try {
+          const pRes = await obtenerParticipante(ci, true)
+          if (pRes && pRes.unauthorized) { setError('No autorizado'); setLoading(false); return }
+          if (pRes && pRes.ok && pRes.data) {
+            tipo = (pRes.data.tipo_participante || pRes.data.tipo || '').toString().toLowerCase()
+          }
+        } catch {
+          tipo = null
+        }
+
+        const tipoNorm = (tipo||'').toString().toLowerCase()
+        const isDocente = tipoNorm === 'docente'
+        const isPosgrado = tipoNorm === 'posgrado' || tipoNorm === 'postgrado'
+
+        // 3) exclusividad de sala: si la sala es docente o posgrado, sólo su tipo puede participar
+        if (salaTipo === 'docente' && !isDocente) { setError(`La sala es exclusiva para docentes. El participante ${ci} no es docente.`); setLoading(false); return }
+        if ((salaTipo === 'posgrado' || salaTipo === 'postgrado') && !isPosgrado) { setError(`La sala es exclusiva para posgrado. El participante ${ci} no es posgrado.`); setLoading(false); return }
+
+        // 4) aplicar límites: si participante está exento (docente en sala docente OR posgrado en sala posgrado) -> no aplicar
+        const exempt = (isDocente && salaTipo === 'docente') || (isPosgrado && (salaTipo === 'posgrado' || salaTipo === 'postgrado'))
+
+        if (!exempt) {
+          let existingMinutes = 0
+          for (const r of todasReservas) {
+            // comprobar si participa
+            const parts = r.participantes || []
+            const includes = parts.some(p => { if (p==null) return false; if (typeof p === 'number' || typeof p === 'string') return String(p) === ci; return (p.ci||p.ci_participante||p.identificacion||p.cedula) && String(p.ci||p.ci_participante||p.identificacion||p.cedula) === ci })
+            if (!includes) continue
+            const rFecha = parseDate(r.fecha)
+            if (!rFecha) continue
+            const estado = (r.estado_actual || r.estado || '').toString().toLowerCase()
+            if (estado !== 'activa') continue
+            if (!sameDay(rFecha, fechaObj)) continue
+            if (!r.turnos || r.turnos.length === 0) continue
+            for (const rt of r.turnos) {
+              const rs = horaToMinutes(rt.hora_inicio); const re = horaToMinutes(rt.hora_fin); if (rs==null||re==null) continue; existingMinutes += Math.max(0, re - rs)
+            }
+          }
+          if ((existingMinutes + newMinutes) > 120) { setError(`El participante ${ci} excede el límite diario de 2 horas.`); setLoading(false); return }
+
+          const s = startOfWeek(fechaObj); const e = endOfWeek(fechaObj)
+          const cntSemana = todasReservas.filter(r => {
+            const parts = r.participantes || []
+            const includes = parts.some(p => { if (p==null) return false; if (typeof p === 'number' || typeof p === 'string') return String(p) === ci; return (p.ci||p.ci_participante||p.identificacion||p.cedula) && String(p.ci||p.ci_participante||p.identificacion||p.cedula) === ci })
+            if (!includes) return false
+            const rFecha = parseDate(r.fecha); if (!rFecha) return false
+            const estado = (r.estado_actual || r.estado || '').toString().toLowerCase(); if (estado !== 'activa') return false
+            return (rFecha >= s && rFecha <= e)
+          }).length
+          // incluir la reserva solicitada en este request
+          const totalSemana = (cntSemana || 0) + 1
+          if (totalSemana > 3) { setError(`El participante ${ci} ya tiene ${cntSemana} reservas activas en la semana (máx 3).`); setLoading(false); return }
+        }
+      }
+    } catch (err) {
+      setError(err.message || 'Error validando reglas de reservas')
+      setLoading(false)
+      return
     }
 
     const res = await reservaService.crearReserva(payload)
@@ -425,7 +551,7 @@ export default function CrearReserva({ tienesSanciones }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="turno">Turno (máximo dos turnos)</label>
+          <label htmlFor="turno">Turno (puede seleccionar varios turnos)</label>
           {turnos.length === 0 ? (
             <div className="form-input">
               Seleccione una sala y una fecha para visualizar los turnos
@@ -467,14 +593,10 @@ export default function CrearReserva({ tienesSanciones }) {
                       setSelectedTurnosIds(prev => {
                         let nuevosSeleccionados = [...prev]
 
-                        if (isChecked) {
-                          if (nuevosSeleccionados.length >= 2) {
-                            alert(
-                              'Solo es posible seleccionar hasta dos turnos (máximo dos horas).'
-                            )
-                            return prev
-                          }
-                          nuevosSeleccionados.push(t.id_turno)
+                                    if (isChecked) {
+                                    // permitir seleccionar cualquier cantidad de turnos en UI;
+                                    // las restricciones se validan al enviar según rol y tipo de sala
+                                    nuevosSeleccionados.push(t.id_turno)
                         } else {
                           nuevosSeleccionados = nuevosSeleccionados.filter(
                             id => id !== t.id_turno
