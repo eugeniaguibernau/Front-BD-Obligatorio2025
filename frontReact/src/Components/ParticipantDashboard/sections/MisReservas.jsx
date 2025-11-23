@@ -227,7 +227,7 @@ export default function MisReservas() {
     }
   }
 
-  // Evitar reintentos si el backend responde TURN_NOT_FINISHED o NO_TURNO_INFO
+  // Evitar reintentos si el backend responde TURN_NOT_FINISHED o NO_TURNO_INFO o 403, y solo marcar 'sin asistencia' si la hora actual es posterior a hora_fin
   const noAsistBlocked = useRef(new Set())
   const markPastAsNoAsist = async (list) => {
     if (!Array.isArray(list) || list.length === 0) return
@@ -235,21 +235,38 @@ export default function MisReservas() {
     const toUpdate = list.filter(r => {
       const fecha = r.fecha ? new Date(r.fecha) : null
       const st = (r.estado || '').toString().toLowerCase()
-      return st === 'activa' && fecha && !isNaN(fecha.getTime()) && fecha.getTime() < now.getTime() && !noAsistBlocked.current.has(r.id_reserva || r.id)
+      // Solo si la reserva está activa, la fecha es válida y ya pasó, y no está bloqueada
+      if (st !== 'activa' || !fecha || isNaN(fecha.getTime()) || noAsistBlocked.current.has(r.id_reserva || r.id)) return false
+      // Si hay info de turno, chequear hora_fin
+      if (r.turno && r.turno.hora_fin) {
+        // fecha es solo día, hora_fin es HH:MM:SS
+        const [h, m, s] = String(r.turno.hora_fin).split(':').map(Number)
+        const turnoEnd = new Date(fecha)
+        turnoEnd.setHours(h || 0, m || 0, s || 0, 0)
+        return now.getTime() > turnoEnd.getTime()
+      }
+      // Si no hay info de turno, usar solo la fecha (marcar si el día ya pasó)
+      return fecha.getTime() < now.setHours(0,0,0,0)
     })
     if (toUpdate.length === 0) return
     try {
       setActionLoading(true)
       for (const r of toUpdate) {
         const id = r.id_reserva || r.id
-        const res = await reservaService.actualizarReserva(id, { estado: 'sin asistencia' })
-        if (res && res.code && (res.code === 'TURN_NOT_FINISHED' || res.code === 'NO_TURNO_INFO')) {
+        try {
+          const res = await reservaService.actualizarReserva(id, { estado: 'sin asistencia' })
+          if (res && (res.code === 'TURN_NOT_FINISHED' || res.code === 'NO_TURNO_INFO' || res.status === 403 || res.unauthorized)) {
+            noAsistBlocked.current.add(id)
+            setMessage('No se puede marcar "sin asistencia" hasta que termine el turno.')
+          } else if (!res.ok) {
+            setMessage(res.error || 'Error al marcar sin asistencia')
+          }
+        } catch (err) {
           noAsistBlocked.current.add(id)
+          setMessage('No se puede marcar "sin asistencia" hasta que termine el turno.')
         }
       }
       if (toUpdate.length > 0) setMessage(`Se marcaron ${toUpdate.length} reservas como sin asistencia (automático)`)
-    } catch (e) {
-      // opcional: mostrar error
     } finally {
       setActionLoading(false)
       fetchReservas()
