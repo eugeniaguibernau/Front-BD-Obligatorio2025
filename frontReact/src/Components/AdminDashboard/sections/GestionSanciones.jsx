@@ -297,7 +297,6 @@ export default function GestionSanciones() {
       return;
     }
 
-    // format dates for backend (YYYY-MM-DD UTC)
     const formatForSend = (fecha) => {
       const d = new Date(fecha + 'T00:00:00');
       const y = d.getUTCFullYear();
@@ -311,7 +310,6 @@ export default function GestionSanciones() {
 
     try {
       setLoading(true);
-      // Normalize original sancion dates (they may come in DD/MM/YYYY or similar)
       const origenInicio = parseToYMD(sancion.fecha_inicio) || parseToYMD(sancion.fechaInicio) || parseToYMD(sancion.fecha) || null;
       const origenFin = parseToYMD(sancion.fecha_fin) || parseToYMD(sancion.fechaFin) || parseToYMD(sancion.fecha) || null;
 
